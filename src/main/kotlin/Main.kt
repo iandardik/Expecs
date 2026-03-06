@@ -26,18 +26,20 @@ class PrintProc(name : String, alphabet : Set<Action>) : Proc(name, alphabet) {
 fun main() {
     val chan1 = Channel<Int>()
     val chan2 = Channel<Int>()
-    for (i in 1..100) {
-        println("i: $i")
+    for (i in 1..5) {
+        //println("\n\n\n")
         val t1 = Thread {
             //chan1.send(1)
             Select(
                 Select.SendCase(chan1, 1) { },
                 Select.SendCase(chan2, 2) { },
             ).run()
+            /*
             Select(
                 Select.ReceiveCase(chan1) { data -> println("t1 chan1: $data") },
                 Select.ReceiveCase(chan2) { data -> println("t1 chan2: $data") },
             ).run()
+             */
         }
         val t2 = Thread {
             //println("t2 chan1: ${chan1.receive()}")
@@ -45,9 +47,35 @@ fun main() {
                 Select.ReceiveCase(chan1) { data -> println("t2 chan1: $data") },
                 Select.ReceiveCase(chan2) { data -> println("t2 chan2: $data") },
             ).run()
+            /*
             Select(
                 Select.SendCase(chan1, 3) { },
                 Select.SendCase(chan2, 4) { },
+            ).run()
+             */
+        }
+
+        val tpool = Executors.newFixedThreadPool(2)
+        tpool.submit(t1)
+        tpool.submit(t2)
+        tpool.shutdown()
+        t1.join()
+        t2.join()
+    }
+}
+
+fun main4() {
+    val chan1 = Channel<Int>()
+    for (i in 1..1) {
+        println("i: $i")
+        val t1 = Thread {
+            Select(
+                Select.SendCase(chan1, i) { },
+            ).run()
+        }
+        val t2 = Thread {
+            Select(
+                Select.ReceiveCase(chan1) { data -> println("t2 chan1: $data") },
             ).run()
         }
 
@@ -55,6 +83,8 @@ fun main() {
         tpool.submit(t1)
         tpool.submit(t2)
         tpool.shutdown()
+        t1.join()
+        t2.join()
     }
 }
 
