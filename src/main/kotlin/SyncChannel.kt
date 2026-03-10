@@ -1,9 +1,8 @@
 import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.locks.ReentrantLock
-import kotlin.jvm.optionals.getOrDefault
 
-class SyncChannel<T>(private val syncSize : Int) {
+class SyncChannel<T : Any>(private val syncSize : Int) {
     private val lobbyLock = ReentrantLock()
     private val lobbyCond = lobbyLock.newCondition()
     private val comLock = ReentrantLock()
@@ -16,6 +15,26 @@ class SyncChannel<T>(private val syncSize : Int) {
     private var numExited = 0
 
     fun sync(compute : ()->T, commit : (T)->Boolean = {true}) : Optional<T> {
+        var attemptingSync = true
+        var syncResult = Optional.empty<T>()
+        while (attemptingSync) {
+            val enter = enterThroughLobby() // not the fairest policy to have each thread reenter the lobby on each retry
+            if (!enter) {
+                // this means that the thread was interrupted, which implies an abort
+                return Optional.empty()
+            }
+
+            // once we've made it here, attempt to sync
+            val (result, value) = syncAttempt(compute, commit)
+            if (result == "abort" || result == "commit") {
+                attemptingSync = false
+                syncResult = value
+            }
+        }
+        return syncResult
+    }
+
+    private fun enterThroughLobby() : Boolean {
         // wait to enter the channel
         try {
             lobbyLock.lock()
@@ -33,11 +52,30 @@ class SyncChannel<T>(private val syncSize : Int) {
             } else {
                 lobbyCond.await()
             }
+            return true
+        }
+        catch (e : InterruptedException) {
+            return false
         }
         finally {
             lobbyLock.unlock()
         }
+    }
 
+    private fun exitThroughLobby() {
+        try {
+            lobbyLock.lock()
+            size = 0
+
+            // tell everyone in the lobby that we're done
+            lobbyCond.signalAll()
+        }
+        finally {
+            lobbyLock.unlock()
+        }
+    }
+
+    private fun syncAttempt(compute : ()->T, commit : (T)->Boolean = {true}) : Pair<String,Optional<T>> {
         // the channel has been entered
         try {
             comLock.lock()
@@ -61,11 +99,12 @@ class SyncChannel<T>(private val syncSize : Int) {
             }
             comCond.signalAll()
 
-            return if (aborted) {
-                Optional.empty<T>()
+            return if (commit && aborted) {
+                Pair("retry", Optional.empty())
+            } else if (aborted) {
+                Pair("abort", Optional.empty<T>())
             } else {
-                // commit
-                syncValue
+                Pair("commit", syncValue)
             }
         }
         finally {
@@ -76,16 +115,7 @@ class SyncChannel<T>(private val syncSize : Int) {
                 aborted = false
                 syncValue = Optional.empty()
                 numExited = 0
-                try {
-                    lobbyLock.lock()
-                    size = 0
-
-                    // tell everyone in the lobby that we're done
-                    lobbyCond.signalAll()
-                }
-                finally {
-                    lobbyLock.unlock()
-                }
+                exitThroughLobby()
             }
             comLock.unlock()
         }
@@ -139,16 +169,11 @@ fun main() {
             val rv = chan1.sync(randGen).get()
             println("t3: $rv")
         }
-        val t4 = Thread {
-            val rv = chan1.sync(randGen).get()
-            println("t4: $rv")
-        }
 
-        val tpool = Executors.newFixedThreadPool(100)
+        val tpool = Executors.newFixedThreadPool(1000)
         tpool.submit(t1)
         tpool.submit(t2)
         tpool.submit(t3)
-        tpool.submit(t4)
         tpool.shutdown()
     }
 }
