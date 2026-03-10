@@ -94,7 +94,9 @@ class SyncChannel<T : Any>(private val syncSize : Int) {
             }
             aborted = aborted || !commit
             // wait until an abort or enough votes to commit the value
-            while (!aborted && !(commit && commitVotes == syncSize)) {
+            while (!aborted && commitVotes < syncSize) {
+                // at this point, this thread is attempting to commit but doesn't have the votes yet to commit.
+                // wait for the other threads to decide if they want to commit or abort.
                 comCond.await()
             }
             comCond.signalAll()
