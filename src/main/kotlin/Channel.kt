@@ -4,18 +4,18 @@ import java.util.concurrent.locks.Condition
 import java.util.concurrent.locks.ReentrantLock
 
 class Channel<T> {
-    private val lock = ReentrantLock()
-    private val sendCondition = lock.newCondition()
-    private val recvCondition = lock.newCondition()
-    private val sendAckCondition = lock.newCondition()
-    private val recvAckCondition = lock.newCondition()
     private val recvLock = ReentrantLock()
     private val sendLock = ReentrantLock()
+    private val commLock = ReentrantLock()
+    private val commCondition = commLock.newCondition()
 
     private var twoPhaseLocks = emptySet<StratifiedLock>()
     private var sendAck = false
     private var recvAck = false
+    private var commState = CommState.LOBBY
     private var transmission = Optional.empty<T>()
+
+    enum class CommState {LOBBY, SEND_READY, TRANSMISSION_READY, SEND_ACKED, RECV_READY, RECV_ACKED}
 
     private fun confirmAck(cfmCondition : ()->Boolean) : Boolean {
         var locksAcquired = emptySet<StratifiedLock>()
@@ -34,6 +34,7 @@ class Channel<T> {
 
     // repeat the await() on the condition until it happens. return whether or not an interruption happened.
     private fun interruptionSafeAwait(cond : Condition) : Boolean {
+        val currentCommState = commState
         var done = false
         var interruption = false
         while (!done) {
@@ -43,8 +44,11 @@ class Channel<T> {
             }
             catch (e : InterruptedException) {
                 interruption = true
+                if (commState != currentCommState) {
+                    // (avoids the bug that the other thread can signal <cond> before we await() on it again)
+                    done = true
+                }
             }
-            // TODO the bug here is that the other thread can signal <cond> before we await() on it again
         }
         return interruption
     }
@@ -53,28 +57,33 @@ class Channel<T> {
         var interrupted = false
         try {
             sendLock.lock()
-            lock.lock()
+            commLock.lock()
             while (true) {
                 if (interrupted) {
                     return false
                 }
 
-                recvCondition.signal() // notify a receiver that we are ready to send
+                assert(commState == CommState.LOBBY)
+                commState = CommState.SEND_READY
+                commCondition.signalAll() // notify a receiver that we are ready to send
+
                 // wait until a receiver is ready
-                interrupted = interrupted || interruptionSafeAwait(sendCondition)
+                interrupted = interrupted || interruptionSafeAwait(commCondition)
 
                 // set any locks
                 twoPhaseLocks = twoPhaseLocks union locks
 
                 // set the transmission value
                 transmission = Optional.of(data)
-                recvCondition.signal()
+                commState = CommState.TRANSMISSION_READY
+                commCondition.signalAll()
 
                 // wait for the receiver to send an ack--retry the send if the transmission value is still present
-                interrupted = interrupted || interruptionSafeAwait(sendAckCondition)
+                interrupted = interrupted || interruptionSafeAwait(commCondition)
 
                 sendAck = !interrupted && confirmAck(cfmCondition) // perform all necessary locks before sending an ack back
-                recvAckCondition.signalAll()
+                commState = CommState.SEND_ACKED
+                commCondition.signalAll()
                 twoPhaseLocks = twoPhaseLocks.minus(locks)
                 transmission = Optional.empty()
 
@@ -99,7 +108,7 @@ class Channel<T> {
             return false
         }
         finally {
-            lock.unlock()
+            commLock.unlock()
             sendLock.unlock()
         }
     }
@@ -108,7 +117,7 @@ class Channel<T> {
         var interrupted = false
         try {
             recvLock.lock()
-            lock.lock()
+            commLock.lock()
             while (true) {
                 assert(transmission.isEmpty)
                 while (transmission.isEmpty) {
@@ -116,9 +125,10 @@ class Channel<T> {
                         return Optional.empty()
                     }
 
-                    sendCondition.signal() // notify a sender that we are ready to receive
+                    commState = CommState.RECV_READY
+                    commCondition.signalAll() // notify a sender that we are ready to receive
                     // wait until a sender is ready
-                    interrupted = interrupted || interruptionSafeAwait(recvCondition)
+                    interrupted = interrupted || interruptionSafeAwait(commCondition)
                 }
 
                 // set any locks
@@ -131,9 +141,11 @@ class Channel<T> {
                 // perform all necessary locks before sending an ack back
                 // TODO cfmCondition should accept recv
                 recvAck = !interrupted && confirmAck(cfmCondition)
-                sendAckCondition.signalAll()
-                interrupted = interrupted || interruptionSafeAwait(recvAckCondition)
+                commState = CommState.RECV_ACKED
+                commCondition.signalAll()
+                interrupted = interrupted || interruptionSafeAwait(commCondition)
                 twoPhaseLocks = twoPhaseLocks.minus(locks)
+                commState = CommState.LOBBY
 
                 if (recvAck && sendAck) {
                     // success
@@ -156,7 +168,7 @@ class Channel<T> {
             return Optional.empty()
         }
         finally {
-            lock.unlock()
+            commLock.unlock()
             recvLock.unlock()
         }
     }
