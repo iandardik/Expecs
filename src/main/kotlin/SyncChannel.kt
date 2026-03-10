@@ -2,7 +2,10 @@ import java.util.*
 import java.util.concurrent.Executors
 import java.util.concurrent.locks.ReentrantLock
 
-class SyncChannel<T : Any>(private val syncSize : Int) {
+class SyncChannel<T : Any>(
+    private val syncSize : Int,
+    private val compute : ()->T
+) {
     private val lobbyLock = ReentrantLock()
     private val lobbyCond = lobbyLock.newCondition()
     private val comLock = ReentrantLock()
@@ -13,19 +16,21 @@ class SyncChannel<T : Any>(private val syncSize : Int) {
     private var commitVotes = 0
     private var aborted = false
     private var numExited = 0
+    private var selects : Set<Select> = emptySet()
 
-    fun sync(compute : ()->T, commit : (T)->Boolean = {true}) : Optional<T> {
+    fun sync(select : Optional<Select> = Optional.empty()) : Optional<T> {
         var attemptingSync = true
         var syncResult = Optional.empty<T>()
         while (attemptingSync) {
-            val enter = enterThroughLobby() // not the fairest policy to have each thread reenter the lobby on each retry
+            val enter = enterThroughLobby(select) // not the fairest policy to have each thread reenter the lobby on each retry
+            // TODO this stub below is a bit dangerous, since it doesn't exitThroughLobby() (not always clear when it should)
             if (!enter) {
                 // this means that the thread was interrupted, which implies an abort
                 return Optional.empty()
             }
 
             // once we've made it here, attempt to sync
-            val (result, value) = syncAttempt(compute, commit)
+            val (result, value) = syncAttempt(select.isPresent)
             if (result == "abort" || result == "commit") {
                 attemptingSync = false
                 syncResult = value
@@ -34,7 +39,7 @@ class SyncChannel<T : Any>(private val syncSize : Int) {
         return syncResult
     }
 
-    private fun enterThroughLobby() : Boolean {
+    private fun enterThroughLobby(select : Optional<Select>) : Boolean {
         // wait to enter the channel
         try {
             lobbyLock.lock()
@@ -47,6 +52,9 @@ class SyncChannel<T : Any>(private val syncSize : Int) {
             // the thread has gotten "in", now wait until enough threads have also gotten in
             ++size
             // TODO add the formula to some shared DS
+            if (select.isPresent) {
+                selects = selects.plus(select.get())
+            }
             if (size == syncSize) {
                 lobbyCond.signalAll()
             } else {
@@ -66,6 +74,7 @@ class SyncChannel<T : Any>(private val syncSize : Int) {
         try {
             lobbyLock.lock()
             size = 0
+            selects = emptySet()
 
             // tell everyone in the lobby that we're done
             lobbyCond.signalAll()
@@ -75,7 +84,24 @@ class SyncChannel<T : Any>(private val syncSize : Int) {
         }
     }
 
-    private fun syncAttempt(compute : ()->T, commit : (T)->Boolean = {true}) : Pair<String,Optional<T>> {
+    private fun selectsCommit() : Boolean {
+        // request a commit from all parties--only commit if all are able to
+        // 2PL on all selects
+        val allLocks = selects.map { it.getPublicLock() }.sorted()
+        try {
+            allLocks.forEach { it.lock() }
+            val allCanCommit = selects.all { it.canCommit(hashCode()) }
+            if (allCanCommit) {
+                selects.forEach { it.doCommit(hashCode()) }
+            }
+            return allCanCommit
+        }
+        finally {
+            allLocks.forEach { it.unlock() }
+        }
+    }
+
+    private fun syncAttempt(hasSelect : Boolean) : Pair<String,Optional<T>> {
         // the channel has been entered
         try {
             comLock.lock()
@@ -88,7 +114,7 @@ class SyncChannel<T : Any>(private val syncSize : Int) {
             // TODO if the syncValue is UNSAT then we should retry
 
             // attempt to commit to the value
-            val commit = commit.invoke(syncValue.get())
+            val commit = selectsCommit()
             if (commit) {
                 ++commitVotes
             }
@@ -101,12 +127,13 @@ class SyncChannel<T : Any>(private val syncSize : Int) {
             }
             comCond.signalAll()
 
-            return if (commit && aborted) {
-                Pair("retry", Optional.empty())
-            } else if (aborted) {
-                Pair("abort", Optional.empty<T>())
-            } else {
+            return if (commit && !aborted) {
                 Pair("commit", syncValue)
+            } else if (commit && hasSelect) {
+                // never retry if there's a select--the select itself will retry
+                Pair("retry", Optional.empty())
+            } else {
+                Pair("abort", Optional.empty<T>())
             }
         }
         finally {
@@ -124,24 +151,24 @@ class SyncChannel<T : Any>(private val syncSize : Int) {
     }
 }
 
-fun mainA() {
-    val chan1 = SyncChannel<Int>(2)
+fun main() {
+    val randGen = { Random().nextInt() }
+    val chan1 = SyncChannel<Int>(2, randGen)
     for (i in 0.. 100) {
-        val randGen = { Random().nextInt() }
         val t1 = Thread {
-            val rv = chan1.sync(randGen).get()
+            val rv = chan1.sync().get()
             println("t1: $rv")
         }
         val t2 = Thread {
-            val rv = chan1.sync(randGen).get()
+            val rv = chan1.sync().get()
             println("t2: $rv")
         }
         val t3 = Thread {
-            val rv = chan1.sync(randGen).get()
+            val rv = chan1.sync().get()
             println("t3: $rv")
         }
         val t4 = Thread {
-            val rv = chan1.sync(randGen).get()
+            val rv = chan1.sync().get()
             println("t4: $rv")
         }
 
@@ -154,21 +181,21 @@ fun mainA() {
     }
 }
 
-fun main() {
-    val chan1 = SyncChannel<Int>(2)
+fun mainB() {
+    val randGen = { Random().nextInt() }
+    val chan1 = SyncChannel<Int>(2, randGen)
     for (i in 0.. 100) {
-        val randGen = { Random().nextInt() }
         val ffun : (Int)->Boolean = { false }
         val t1 = Thread {
-            val rv = chan1.sync(randGen,ffun).get()
+            val rv = chan1.sync().get()
             println("t1: $rv")
         }
         val t2 = Thread {
-            val rv = chan1.sync(randGen).get()
+            val rv = chan1.sync().get()
             println("t2: $rv")
         }
         val t3 = Thread {
-            val rv = chan1.sync(randGen).get()
+            val rv = chan1.sync().get()
             println("t3: $rv")
         }
 
