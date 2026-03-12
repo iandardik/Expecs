@@ -136,6 +136,10 @@ class SyncChannel<T : Any>(
                 Pair("abort", Optional.empty<T>())
             }
         }
+        catch (e : InterruptedException) {
+            comCond.signalAll()
+            return Pair("abort", Optional.empty<T>())
+        }
         finally {
             ++numExited
             if (numExited == syncSize) {
@@ -151,58 +155,3 @@ class SyncChannel<T : Any>(
     }
 }
 
-fun main() {
-    val randGen = { Random().nextInt() }
-    val chan1 = SyncChannel<Int>(2, randGen)
-    for (i in 0.. 100) {
-        val t1 = Thread {
-            val rv = chan1.sync().get()
-            println("t1: $rv")
-        }
-        val t2 = Thread {
-            val rv = chan1.sync().get()
-            println("t2: $rv")
-        }
-        val t3 = Thread {
-            val rv = chan1.sync().get()
-            println("t3: $rv")
-        }
-        val t4 = Thread {
-            val rv = chan1.sync().get()
-            println("t4: $rv")
-        }
-
-        val tpool = Executors.newFixedThreadPool(100)
-        tpool.submit(t1)
-        tpool.submit(t2)
-        tpool.submit(t3)
-        tpool.submit(t4)
-        tpool.shutdown()
-    }
-}
-
-fun mainB() {
-    val randGen = { Random().nextInt() }
-    val chan1 = SyncChannel<Int>(2, randGen)
-    for (i in 0.. 100) {
-        val ffun : (Int)->Boolean = { false }
-        val t1 = Thread {
-            val rv = chan1.sync().get()
-            println("t1: $rv")
-        }
-        val t2 = Thread {
-            val rv = chan1.sync().get()
-            println("t2: $rv")
-        }
-        val t3 = Thread {
-            val rv = chan1.sync().get()
-            println("t3: $rv")
-        }
-
-        val tpool = Executors.newFixedThreadPool(1000)
-        tpool.submit(t1)
-        tpool.submit(t2)
-        tpool.submit(t3)
-        tpool.shutdown()
-    }
-}

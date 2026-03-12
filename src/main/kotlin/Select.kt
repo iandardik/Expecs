@@ -1,5 +1,4 @@
 import java.util.*
-import java.util.concurrent.Executors
 import java.util.concurrent.locks.ReentrantLock
 
 class Select(private vararg val cases : Case) : Runnable {
@@ -59,6 +58,8 @@ class Select(private vararg val cases : Case) : Runnable {
                 val ret = chan.sync(selectRef)
                 done = ret.isPresent || select.winner.isPresent
                 if (ret.isPresent) {
+                    assert(select.winner.get() == chan.hashCode())
+                    assert(done)
                     callback.invoke(ret.get())
                     try {
                         select.lock.lock()
@@ -70,63 +71,5 @@ class Select(private vararg val cases : Case) : Runnable {
             }
         }
     }
-
-    class SendCase<T>(
-        private val chan : Channel<T>,
-        private val data : T,
-        private val callback : ()->Unit
-    ) : Case {
-        private var selectRef : Optional<Select> = Optional.empty()
-        private var threadRef : Optional<Thread> = Optional.empty()
-
-
-        override fun setSelect(s : Select) {
-            selectRef = Optional.of(s)
-        }
-
-        override fun run() {
-        }
-    }
-    class ReceiveCase<T>(
-        private val chan : Channel<T>,
-        private val callback : (T)->Unit
-    ) : Case {
-        private var selectRef : Optional<Select> = Optional.empty()
-        private var threadRef : Optional<Thread> = Optional.empty()
-
-        override fun setSelect(s : Select) {
-            selectRef = Optional.of(s)
-        }
-
-        override fun run() {
-        }
-
-    }
 }
 
-fun main() {
-    val randGen = { Random().nextInt() }
-    val chan1 = SyncChannel<Int>(2, randGen)
-    val chan2 = SyncChannel<Int>(2, randGen)
-    for (i in 1..100) {
-        val t1 = Thread {
-            Select(
-                Select.SyncCase(chan1) { syncVal -> println("t1 chan1: $syncVal") },
-                Select.SyncCase(chan2) { syncVal -> println("t1 chan2: $syncVal") },
-            ).run()
-        }
-        val t2 = Thread {
-            Select(
-                Select.SyncCase(chan1) { syncVal -> println("t2 chan1: $syncVal") },
-                Select.SyncCase(chan2) { syncVal -> println("t2 chan2: $syncVal") },
-            ).run()
-        }
-
-        val tpool = Executors.newFixedThreadPool(100)
-        tpool.submit(t1)
-        tpool.submit(t2)
-        tpool.shutdown()
-        t1.join()
-        t2.join()
-    }
-}
