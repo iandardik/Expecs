@@ -8,6 +8,24 @@ class Select(private vararg val cases : Case) : Runnable {
     private val publicLock = StratifiedLock()
     private var winner = Optional.empty<Int>()
 
+    init {
+        // check to make sure no two cases use the same channel
+        val numCases = cases.size
+        val numChannels = cases.map { it.getChannelHash() }.toSet().size
+        if (numCases != numChannels) {
+            throw RuntimeException("Each Case in a Select must use a unique channel")
+        }
+
+        // make sure that each cases isn't already associated with a select
+        cases.forEach {
+            if (it.hasSelect()) {
+                throw RuntimeException("A Case must only be associated with a single Select")
+            }
+        }
+
+        cases.forEach { it.setSelect(this) }
+    }
+
     fun getPublicLock() = publicLock
     fun canCommit(chanHash : Int) : Boolean {
         return winner.isEmpty || winner.get() == chanHash
@@ -18,9 +36,11 @@ class Select(private vararg val cases : Case) : Runnable {
     }
 
     override fun run() {
-        sanityChecks()
+        // make sure that run() is only ever run once
+        if (winner.isPresent) {
+            throw RuntimeException("Select run multiple times")
+        }
 
-        cases.forEach { it.setSelect(this) }
         val threads = cases.map { Thread(it) }
         try {
             // spawn a thread for each case and listen on the channel. each thread attempts to "win" the select statement
@@ -35,27 +55,6 @@ class Select(private vararg val cases : Case) : Runnable {
         assert(winner.isPresent)
         threads.forEach {
             it.interrupt()
-        }
-    }
-
-    private fun sanityChecks() {
-        // make sure that run() is only ever run once
-        if (winner.isPresent) {
-            throw RuntimeException("Select run multiple times")
-        }
-
-        // check to make sure no two cases use the same channel
-        val numCases = cases.size
-        val numChannels = cases.map { it.getChannelHash() }.toSet().size
-        if (numCases != numChannels) {
-            throw RuntimeException("Each Case in a Select must use a unique channel")
-        }
-
-        // make sure that each cases isn't already associated with a select
-        cases.forEach {
-            if (it.hasSelect()) {
-                throw RuntimeException("A Case must only be associated with a single Select")
-            }
         }
     }
 

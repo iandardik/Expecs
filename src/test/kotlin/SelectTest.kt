@@ -1,5 +1,4 @@
-import org.testng.Assert.assertEquals
-import org.testng.Assert.assertTrue
+import org.testng.Assert.*
 import org.testng.annotations.Test
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
@@ -228,5 +227,39 @@ class SelectTest {
             } else {
                 curVal + 1
             }
+    }
+
+    @Test
+    fun testSanityCheckReuseChannel() {
+        val chan = SyncChannel(2) { 1 }
+        assertThrows {
+            Select(
+                Select.SyncCase(chan) {},
+                Select.SyncCase(chan) {},
+            )
+        }
+    }
+
+    @Test
+    fun testSanityCheckReuseCase() {
+        val chan = SyncChannel(2) { 1 }
+        val case = Select.SyncCase(chan) {}
+        Select(case)
+        assertThrows {
+            Select(case)
+        }
+    }
+
+    @Test
+    fun testSanityCheckRerunCase() {
+        val chan = SyncChannel(1) { 1 }
+        val select = Select(
+            Select.SyncCase(chan) {}
+        )
+        select.run()
+        // the select should only be able to be run once
+        assertThrows {
+            select.run()
+        }
     }
 }
