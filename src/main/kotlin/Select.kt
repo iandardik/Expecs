@@ -1,3 +1,4 @@
+import java.lang.RuntimeException
 import java.util.*
 import java.util.concurrent.locks.ReentrantLock
 
@@ -17,9 +18,7 @@ class Select(private vararg val cases : Case) : Runnable {
     }
 
     override fun run() {
-        // TODO check to make sure no two cases use the same channel
-        // TODO make sure that each cases isn't already associated with a select
-        // TODO make sure that run() is only ever run once
+        sanityChecks()
 
         cases.forEach { it.setSelect(this) }
         val threads = cases.map { Thread(it) }
@@ -39,9 +38,32 @@ class Select(private vararg val cases : Case) : Runnable {
         }
     }
 
+    private fun sanityChecks() {
+        // make sure that run() is only ever run once
+        if (winner.isPresent) {
+            throw RuntimeException("Select run multiple times")
+        }
+
+        // check to make sure no two cases use the same channel
+        val numCases = cases.size
+        val numChannels = cases.map { it.getChannelHash() }.toSet().size
+        if (numCases != numChannels) {
+            throw RuntimeException("Each Case in a Select must use a unique channel")
+        }
+
+        // make sure that each cases isn't already associated with a select
+        cases.forEach {
+            if (it.hasSelect()) {
+                throw RuntimeException("A Case must only be associated with a single Select")
+            }
+        }
+    }
+
 
     interface Case : Runnable {
         fun setSelect(s : Select)
+        fun hasSelect() : Boolean
+        fun getChannelHash() : Int
     }
     class SyncCase<T : Any>(
         private val chan : SyncChannel<T>,
@@ -51,6 +73,8 @@ class Select(private vararg val cases : Case) : Runnable {
         override fun setSelect(s : Select) {
             selectRef = Optional.of(s)
         }
+        override fun hasSelect() = selectRef.isPresent
+        override fun getChannelHash() = chan.hashCode()
         override fun run() {
             val select = selectRef.get()
             var done = false

@@ -108,13 +108,13 @@ class SyncChannelTest {
         }
     }
 
-    val chmResultUpdate : (Int,Int?)->Int? = {
-            _, curVal ->
-        if (curVal == null) {
-            1
-        } else {
-            curVal + 1
-        }
+    private val chmResultUpdate : (Int,Int?)->Int? = {
+        _, curVal ->
+            if (curVal == null) {
+                1
+            } else {
+                curVal + 1
+            }
     }
 
     // TODO test cancellation

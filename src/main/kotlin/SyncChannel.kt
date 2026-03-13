@@ -1,5 +1,4 @@
 import java.util.*
-import java.util.concurrent.Executors
 import java.util.concurrent.locks.ReentrantLock
 
 class SyncChannel<T : Any>(
