@@ -64,11 +64,16 @@ class Select(private vararg val cases : Case) : Runnable {
         fun hasSelect() : Boolean
         fun getChannelHash() : Int
     }
-    class SyncCase<T : Any>(
-        private val chan : SyncChannel<T>,
-        private val callback : (T)->Unit
+    class SyncCase<V : Any, C : Any>(
+        private val chan : SyncChannel<V,C>,
+        private val constraint : Optional<C>,
+        private val callback : (V)->Unit = {}
     ) : Case {
         private var selectRef = Optional.empty<Select>()
+        constructor(chan : SyncChannel<V,C>, callback : (V)->Unit = {})
+            : this(chan, Optional.empty(), callback) {}
+        constructor(chan : SyncChannel<V,C>, constraint : C, callback : (V)->Unit = {})
+                : this(chan, Optional.of(constraint), callback) {}
         override fun setSelect(s : Select) {
             selectRef = Optional.of(s)
         }
@@ -78,7 +83,7 @@ class Select(private vararg val cases : Case) : Runnable {
             val select = selectRef.get()
             var done = false
             while (!done) {
-                val ret = chan.sync(selectRef)
+                val ret = chan.sync(constraint, selectRef)
                 done = ret.isPresent || select.winner.isPresent
                 if (ret.isPresent) {
                     assert(select.winner.get() == chan.hashCode())

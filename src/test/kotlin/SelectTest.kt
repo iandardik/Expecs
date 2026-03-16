@@ -31,7 +31,7 @@ class SelectTest {
 
         val incVal = AtomicInteger(1)
         val results = ConcurrentHashMap<Int,Int>() // value -> count
-        val chan = SyncChannel(syncSize) { incVal.getAndIncrement() }
+        val chan = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
         val threads = mutableListOf<Thread>()
         for (i in 1.. numThreads) {
             val t = Thread {
@@ -79,8 +79,8 @@ class SelectTest {
 
         val incVal = AtomicInteger(1)
         val results = ConcurrentHashMap<Int,Int>() // value -> count
-        val chan1 = SyncChannel(syncSize) { incVal.getAndIncrement() }
-        val chan2 = SyncChannel(syncSize) { incVal.getAndIncrement() }
+        val chan1 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
+        val chan2 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
         val threads = mutableListOf<Thread>()
         for (i in 1.. numThreads) {
             val t = Thread {
@@ -128,13 +128,13 @@ class SelectTest {
 
         val incVal = AtomicInteger(1)
         val results = ConcurrentHashMap<Int,Int>() // value -> count
-        val chan1 = SyncChannel(syncSize) { incVal.getAndIncrement() }
-        val chan2 = SyncChannel(syncSize) { incVal.getAndIncrement() }
+        val chan1 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
+        val chan2 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
         val threads = mutableListOf<Thread>()
         for (i in 1.. numThreads) {
             val t1 = Thread {
                 Select(
-                    Select.SyncCase(chan1) { syncResult -> results.compute(syncResult, chmResultUpdate) },
+                    Select.SyncCase<Int,Int>(chan1) { syncResult -> results.compute(syncResult, chmResultUpdate) },
                 ).run()
             }
             val t2 = Thread {
@@ -184,10 +184,10 @@ class SelectTest {
 
         val incVal = AtomicInteger(1)
         val results = ConcurrentHashMap<Int,Int>() // value -> count
-        val chan1 = SyncChannel(syncSize) { incVal.getAndIncrement() }
-        val chan2 = SyncChannel(syncSize) { incVal.getAndIncrement() }
-        val chan3 = SyncChannel(syncSize) { incVal.getAndIncrement() }
-        val chan4 = SyncChannel(syncSize) { incVal.getAndIncrement() }
+        val chan1 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
+        val chan2 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
+        val chan3 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
+        val chan4 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
         val threads = mutableListOf<Thread>()
         for (i in 1.. numThreads) {
             val t1 = Thread {
@@ -231,7 +231,7 @@ class SelectTest {
 
     @Test
     fun testSanityCheckReuseChannel() {
-        val chan = SyncChannel(2) { 1 }
+        val chan = SyncChannel<Int,Int>(2) { 1 }
         assertThrows {
             Select(
                 Select.SyncCase(chan) {},
@@ -242,7 +242,7 @@ class SelectTest {
 
     @Test
     fun testSanityCheckReuseCase() {
-        val chan = SyncChannel(2) { 1 }
+        val chan = SyncChannel<Int,Int>(2) { 1 }
         val case = Select.SyncCase(chan) {}
         Select(case)
         assertThrows {
@@ -252,7 +252,7 @@ class SelectTest {
 
     @Test
     fun testSanityCheckRerunCase() {
-        val chan = SyncChannel(1) { 1 }
+        val chan = SyncChannel<Int,Int>(1) { 1 }
         val select = Select(
             Select.SyncCase(chan) {}
         )

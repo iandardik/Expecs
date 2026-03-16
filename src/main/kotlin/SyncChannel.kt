@@ -1,9 +1,13 @@
 import java.util.*
 import java.util.concurrent.locks.ReentrantLock
 
-class SyncChannel<T : Any>(
+/**
+ * V: The type of the value sent over the channel
+ * C: The type of each constraint
+ */
+class SyncChannel<V : Any, C : Any>(
     private val syncSize : Int,
-    private val compute : ()->T
+    private val compute : (Set<C>)->V // TODO return Optional<V> in case of UNSAT
 ) {
     private val lobbyLock = ReentrantLock()
     private val lobbyCond = lobbyLock.newCondition()
@@ -11,17 +15,26 @@ class SyncChannel<T : Any>(
     private val comCond = comLock.newCondition()
 
     private var size = 0
-    private var syncValue = Optional.empty<T>()
+    private var constraints = emptySet<C>()
+    private var syncValue = Optional.empty<V>()
     private var commitVotes = 0
     private var aborted = false
     private var numExited = 0
     private var selects : Set<Select> = emptySet()
 
-    fun sync(select : Optional<Select> = Optional.empty()) : Optional<T> {
+    fun sync(select : Optional<Select> = Optional.empty()) : Optional<V> {
+        return sync(Optional.empty(), select)
+    }
+
+    fun sync(constraint : C, select : Optional<Select> = Optional.empty()) : Optional<V> {
+        return sync(Optional.of(constraint), select)
+    }
+
+    fun sync(constraint : Optional<C>, select : Optional<Select> = Optional.empty()) : Optional<V> {
         var attemptingSync = true
-        var syncResult = Optional.empty<T>()
+        var syncResult = Optional.empty<V>()
         while (attemptingSync) {
-            val enter = enterThroughLobby(select) // not the fairest policy to have each thread reenter the lobby on each retry
+            val enter = enterThroughLobby(constraint, select) // not the fairest policy to have each thread reenter the lobby on each retry
             // TODO this stub below is a bit dangerous, since it doesn't exitThroughLobby() (not always clear when it should)
             if (!enter) {
                 // this means that the thread was interrupted, which implies an abort
@@ -38,7 +51,7 @@ class SyncChannel<T : Any>(
         return syncResult
     }
 
-    private fun enterThroughLobby(select : Optional<Select>) : Boolean {
+    private fun enterThroughLobby(constraint : Optional<C>, select : Optional<Select>) : Boolean {
         // wait to enter the channel
         try {
             lobbyLock.lock()
@@ -50,7 +63,10 @@ class SyncChannel<T : Any>(
 
             // the thread has gotten "in", now wait until enough threads have also gotten in
             ++size
-            // TODO add the formula to some shared DS
+            if (constraint.isPresent) {
+                // add the thread's value to the set of constraints
+                constraints = constraints.plus(constraint.get())
+            }
             if (select.isPresent) {
                 selects = selects.plus(select.get())
             }
@@ -73,6 +89,7 @@ class SyncChannel<T : Any>(
         try {
             lobbyLock.lock()
             size = 0
+            constraints = emptySet()
             selects = emptySet()
 
             // tell everyone in the lobby that we're done
@@ -100,14 +117,14 @@ class SyncChannel<T : Any>(
         }
     }
 
-    private fun syncAttempt(hasSelect : Boolean) : Pair<String,Optional<T>> {
+    private fun syncAttempt(hasSelect : Boolean) : Pair<String,Optional<V>> {
         // the channel has been entered
         try {
             comLock.lock()
 
             // the first thread to enter this critical section will compute SAT on all formulas
             if (syncValue.isEmpty) {
-                syncValue = Optional.of(compute.invoke())
+                syncValue = Optional.of(compute.invoke(constraints))
             }
 
             // TODO if the syncValue is UNSAT then we should retry
@@ -132,12 +149,12 @@ class SyncChannel<T : Any>(
                 // never retry if there's a select--the select itself will retry
                 Pair("retry", Optional.empty())
             } else {
-                Pair("abort", Optional.empty<T>())
+                Pair("abort", Optional.empty<V>())
             }
         }
         catch (e : InterruptedException) {
             comCond.signalAll()
-            return Pair("abort", Optional.empty<T>())
+            return Pair("abort", Optional.empty<V>())
         }
         finally {
             ++numExited

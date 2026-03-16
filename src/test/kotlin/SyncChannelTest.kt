@@ -32,7 +32,7 @@ class SyncChannelTest {
 
         val incVal = AtomicInteger(1)
         val results = ConcurrentHashMap<Int,Int>() // value -> count
-        val chan = SyncChannel(syncSize) { incVal.getAndIncrement() }
+        val chan = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
         val threads = mutableListOf<Thread>()
         for (i in 1.. numThreads) {
             val t = Thread {
@@ -80,8 +80,8 @@ class SyncChannelTest {
 
         val incVal = AtomicInteger(1)
         val results = ConcurrentHashMap<Int,Int>() // value -> count
-        val chan1 = SyncChannel(syncSize) { incVal.getAndIncrement() }
-        val chan2 = SyncChannel(syncSize) { incVal.getAndIncrement() }
+        val chan1 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
+        val chan2 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
         val threads = mutableListOf<Thread>()
         for (i in 1.. numThreads) {
             val t1 = Thread {
