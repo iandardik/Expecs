@@ -1,3 +1,5 @@
+package exspecs
+
 import java.util.*
 import java.util.concurrent.locks.ReentrantLock
 
@@ -7,7 +9,7 @@ import java.util.concurrent.locks.ReentrantLock
  */
 class SyncChannel<V : Any, C : Any>(
     private val syncSize : Int,
-    private val compute : (Set<C>)->V // TODO return Optional<V> in case of UNSAT
+    private val compute : (Set<C>)->Optional<V>
 ) {
     private val lobbyLock = ReentrantLock()
     private val lobbyCond = lobbyLock.newCondition()
@@ -124,7 +126,7 @@ class SyncChannel<V : Any, C : Any>(
 
             // the first thread to enter this critical section will compute SAT on all formulas
             if (syncValue.isEmpty) {
-                syncValue = Optional.of(compute.invoke(constraints))
+                syncValue = compute.invoke(constraints)
             }
 
             // TODO if the syncValue is UNSAT then we should retry

@@ -1,5 +1,8 @@
+package exspecs
+
 import org.testng.Assert.*
 import org.testng.annotations.Test
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -31,7 +34,7 @@ class SelectTest {
 
         val incVal = AtomicInteger(1)
         val results = ConcurrentHashMap<Int,Int>() // value -> count
-        val chan = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
+        val chan = SyncChannel<Int,Int>(syncSize) { Optional.of(incVal.getAndIncrement()) }
         val threads = mutableListOf<Thread>()
         for (i in 1.. numThreads) {
             val t = Thread {
@@ -79,8 +82,8 @@ class SelectTest {
 
         val incVal = AtomicInteger(1)
         val results = ConcurrentHashMap<Int,Int>() // value -> count
-        val chan1 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
-        val chan2 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
+        val chan1 = SyncChannel<Int,Int>(syncSize) { Optional.of(incVal.getAndIncrement()) }
+        val chan2 = SyncChannel<Int,Int>(syncSize) { Optional.of(incVal.getAndIncrement()) }
         val threads = mutableListOf<Thread>()
         for (i in 1.. numThreads) {
             val t = Thread {
@@ -128,8 +131,8 @@ class SelectTest {
 
         val incVal = AtomicInteger(1)
         val results = ConcurrentHashMap<Int,Int>() // value -> count
-        val chan1 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
-        val chan2 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
+        val chan1 = SyncChannel<Int,Int>(syncSize) { Optional.of(incVal.getAndIncrement()) }
+        val chan2 = SyncChannel<Int,Int>(syncSize) { Optional.of(incVal.getAndIncrement()) }
         val threads = mutableListOf<Thread>()
         for (i in 1.. numThreads) {
             val t1 = Thread {
@@ -184,10 +187,10 @@ class SelectTest {
 
         val incVal = AtomicInteger(1)
         val results = ConcurrentHashMap<Int,Int>() // value -> count
-        val chan1 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
-        val chan2 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
-        val chan3 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
-        val chan4 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
+        val chan1 = SyncChannel<Int,Int>(syncSize) { Optional.of(incVal.getAndIncrement()) }
+        val chan2 = SyncChannel<Int,Int>(syncSize) { Optional.of(incVal.getAndIncrement()) }
+        val chan3 = SyncChannel<Int,Int>(syncSize) { Optional.of(incVal.getAndIncrement()) }
+        val chan4 = SyncChannel<Int,Int>(syncSize) { Optional.of(incVal.getAndIncrement()) }
         val threads = mutableListOf<Thread>()
         for (i in 1.. numThreads) {
             val t1 = Thread {
@@ -231,7 +234,7 @@ class SelectTest {
 
     @Test
     fun testSanityCheckReuseChannel() {
-        val chan = SyncChannel<Int,Int>(2) { 1 }
+        val chan = SyncChannel<Int,Int>(2) { Optional.of(1) }
         assertThrows {
             Select(
                 Select.SyncCase(chan) {},
@@ -242,7 +245,7 @@ class SelectTest {
 
     @Test
     fun testSanityCheckReuseCase() {
-        val chan = SyncChannel<Int,Int>(2) { 1 }
+        val chan = SyncChannel<Int,Int>(2) { Optional.of(1) }
         val case = Select.SyncCase(chan) {}
         Select(case)
         assertThrows {
@@ -252,7 +255,7 @@ class SelectTest {
 
     @Test
     fun testSanityCheckRerunCase() {
-        val chan = SyncChannel<Int,Int>(1) { 1 }
+        val chan = SyncChannel<Int,Int>(1) { Optional.of(1) }
         val select = Select(
             Select.SyncCase(chan) {}
         )

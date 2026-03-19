@@ -1,6 +1,9 @@
+package exspecs
+
 import org.testng.Assert.assertEquals
 import org.testng.Assert.assertTrue
 import org.testng.annotations.Test
+import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -32,7 +35,7 @@ class SyncChannelTest {
 
         val incVal = AtomicInteger(1)
         val results = ConcurrentHashMap<Int,Int>() // value -> count
-        val chan = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
+        val chan = SyncChannel<Int,Int>(syncSize) { Optional.of(incVal.getAndIncrement()) }
         val threads = mutableListOf<Thread>()
         for (i in 1.. numThreads) {
             val t = Thread {
@@ -80,8 +83,8 @@ class SyncChannelTest {
 
         val incVal = AtomicInteger(1)
         val results = ConcurrentHashMap<Int,Int>() // value -> count
-        val chan1 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
-        val chan2 = SyncChannel<Int,Int>(syncSize) { incVal.getAndIncrement() }
+        val chan1 = SyncChannel<Int,Int>(syncSize) { Optional.of(incVal.getAndIncrement()) }
+        val chan2 = SyncChannel<Int,Int>(syncSize) { Optional.of(incVal.getAndIncrement()) }
         val threads = mutableListOf<Thread>()
         for (i in 1.. numThreads) {
             val t1 = Thread {
@@ -125,7 +128,7 @@ class SyncChannelTest {
     @Test
     fun testOneChannelCancellation() {
         val randGen = { Random().nextInt() }
-        val chan1 = SyncChannel<Int>(2, randGen)
+        val chan1 = exspecs.SyncChannel<Int>(2, randGen)
         for (i in 0.. 100) {
             val ffun : (Int)->Boolean = { false }
             val t1 = Thread {

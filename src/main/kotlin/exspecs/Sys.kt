@@ -1,7 +1,10 @@
+package exspecs
+
 class Sys {
 }
 
 fun main() {
+    /*
     val folder = "/Users/idardik/Documents/CMU/compositional_ii/carini/examples/toy_two_phase/"
     val rmSpec = Triple(folder, "RM", "ToyTwoPhase")
     val tmSpec = Triple(folder, "TM", "no_invs")
@@ -25,7 +28,7 @@ fun main() {
         }
     val globalAlph = strActions.toSet()
         .map { act ->
-            actionCountMap[act]?.let { SyncAction(act, it) }
+            actionCountMap[act]?.let { exspecs.SymAction(act, it) }
         }
         .toSet()
     val procs = listOf(rmSpec,tmSpec)
@@ -38,11 +41,12 @@ fun main() {
                 .filterNotNull()
                 .filter { strAlph.contains(it.getName()) }
                 .toSet()
-            Proc(module, tool, alph)
+            exspecs.Proc(module, tool, alph)
         }
 
     println()
     val threads = procs.map { Thread(it) }
     threads.forEach { it.run() }
     threads.forEach { it.join() }
+     */
 }
