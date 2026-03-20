@@ -53,6 +53,21 @@ fun makeProcs2() : List<Proc>  {
     return listOf(p1,p2)
 }
 
+fun makeProcs3() : List<Proc>  {
+    val context = Context()
+    val actIChan = createActionChannel(2)
+
+    val enabledExpr1 = context.mkAnd(context.mkLe(context.mkIntConst("i"), context.mkInt(10)), context.mkGt(context.mkIntConst("inc"), context.mkInt(1)))
+    val actI1 = SymAction("I", listOf("inc"), enabledExpr1, actIChan)
+    val p1 = Proc("p1", TS1(actI1))
+
+    val enabledExpr2 = context.mkAnd(context.mkLe(context.mkIntConst("i"), context.mkInt(10)), context.mkLt(context.mkIntConst("inc"), context.mkInt(3)))
+    val actI2 = SymAction("I", listOf("inc"), enabledExpr2, actIChan)
+    val p2 = Proc("p2", TS1(actI2))
+
+    return listOf(p1,p2)
+}
+
 fun runProcs(procs : List<Proc>) {
     val threads = procs.map { Thread(it) }
     threads.forEach { it.start() }
@@ -65,5 +80,8 @@ fun main(args : Array<String>) {
     }
     for (i in 0..100) {
         runProcs(makeProcs2())
+    }
+    for (i in 0..100) {
+        runProcs(makeProcs3())
     }
 }
