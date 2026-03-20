@@ -3,8 +3,7 @@ package exspecs
 import com.microsoft.z3.*
 import java.util.*
 
-// TODO a better name is probably ActionFormula or something like that
-class Formula {
+class EnabledFormula {
     private val act : Optional<SymAction>
     private val expr : Expr<BoolSort>
 
@@ -23,14 +22,15 @@ class Formula {
         expr = expression
     }
 
-    fun and(other : Formula, ctx : Context) : Formula {
+    fun and(other : EnabledFormula, ctx : Context) : EnabledFormula {
         if (act.isEmpty) {
             return other
         }
         if (other.act.isEmpty) {
             return this
         }
-        return Formula(act, ctx.mkAnd(expr.translate(ctx), other.expr.translate(ctx)))
+        // TODO ensure that the SymAct's for this and other are equal
+        return EnabledFormula(act, ctx.mkAnd(expr.translate(ctx), other.expr.translate(ctx)))
     }
 
     /**
@@ -46,6 +46,6 @@ class Formula {
         }
     }
 }
-fun tt(ctx : Context) : Formula {
-    return Formula(ctx.mkTrue())
+fun tt(ctx : Context) : EnabledFormula {
+    return EnabledFormula(ctx.mkTrue())
 }

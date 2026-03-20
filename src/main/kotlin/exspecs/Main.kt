@@ -31,28 +31,29 @@ class TS1(
     }
 }
 
-fun trial1() {
+fun makeProcs1() : List<Proc> {
     val context = Context()
-    //val actForm = context.mkLe(context.mkIntConst("i"), context.mkInt(10))
-    val actForm = context.mkAnd(context.mkLe(context.mkIntConst("i"), context.mkInt(10)), context.mkGt(context.mkIntConst("inc"), context.mkInt(3)))
-    //val enabledFormula = Formula(actForm, context)
-    val inc = SymAction("I", listOf("inc"), actForm, 1)
-    val p1 = Proc("p1", TS1(inc))
-    val procs = listOf(p1)
-    val threads = procs.map { Thread(it) }
-    threads.forEach { it.start() }
-    threads.forEach { it.join() }
+    //val enabledExpr = context.mkLe(context.mkIntConst("i"), context.mkInt(10))
+    val enabledExpr = context.mkAnd(context.mkLe(context.mkIntConst("i"), context.mkInt(10)), context.mkGt(context.mkIntConst("inc"), context.mkInt(3)))
+    val actIChan = createActionChannel(1)
+    val actI = SymAction("I", listOf("inc"), enabledExpr, actIChan)
+    val p1 = Proc("p1", TS1(actI))
+    return listOf(p1)
 }
 
-fun trial2() {
+fun makeProcs2() : List<Proc>  {
     val context = Context()
-    //val actForm = context.mkLe(context.mkIntConst("i"), context.mkInt(10))
-    val actForm = context.mkAnd(context.mkLe(context.mkIntConst("i"), context.mkInt(10)), context.mkGt(context.mkIntConst("inc"), context.mkInt(3)))
-    //val enabledFormula = Formula(actForm, context)
-    val inc = SymAction("I", listOf("inc"), actForm, 2)
-    val p1 = Proc("p1", TS1(inc))
-    val p2 = Proc("p2", TS1(inc))
-    val procs = listOf(p1,p2)
+    //val enabledExpr = context.mkLe(context.mkIntConst("i"), context.mkInt(10))
+    val enabledExpr = context.mkAnd(context.mkLe(context.mkIntConst("i"), context.mkInt(10)), context.mkGt(context.mkIntConst("inc"), context.mkInt(3)))
+    val actIChan = createActionChannel(2)
+    val actI1 = SymAction("I", listOf("inc"), enabledExpr, actIChan)
+    val p1 = Proc("p1", TS1(actI1))
+    val actI2 = SymAction("I", listOf("inc"), enabledExpr, actIChan)
+    val p2 = Proc("p2", TS1(actI2))
+    return listOf(p1,p2)
+}
+
+fun runProcs(procs : List<Proc>) {
     val threads = procs.map { Thread(it) }
     threads.forEach { it.start() }
     threads.forEach { it.join() }
@@ -60,9 +61,9 @@ fun trial2() {
 
 fun main(args : Array<String>) {
     for (i in 0..100) {
-        trial1()
+        runProcs(makeProcs1())
     }
     for (i in 0..100) {
-        trial2()
+        runProcs(makeProcs2())
     }
 }
