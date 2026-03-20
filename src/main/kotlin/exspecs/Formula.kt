@@ -10,7 +10,7 @@ class Formula {
 
     constructor(action : SymAction) {
         act = Optional.of(action)
-        expr = act.get().getEnabledExpr()
+        expr = action.getEnabledExpr()
     }
 
     constructor(expression : Expr<BoolSort>) {

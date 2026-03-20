@@ -9,7 +9,7 @@ class SymAction(
     private val enabledExpr : BoolExpr,
     private val syncSize : Int,
 ) {
-    val ctx = Context()
+    private val ctx = Context()
     val channel = SyncChannel(syncSize) { constraints ->
         val conj = constraints.fold(tt(ctx)) { acc, f ->
             acc.and(f, ctx)
