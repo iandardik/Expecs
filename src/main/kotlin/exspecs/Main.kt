@@ -1,20 +1,14 @@
 package exspecs
 
 import com.microsoft.z3.*
-import java.lang.RuntimeException
 
 class TS1(
     private val incAct : SymAction,
-    private val context : Context
 ) : TransitionSystem {
     private var i = 1
-    override fun enabledActions(): Set<SymAction> {
-        //val enabled = incAct.getEnabledFormula().and(curStateFormula())
-        //return if (enabled.sat().isPresent) {
-        // TODO this is also bad
-        val enabled = context.mkAnd(incAct.getEnabledFormula(),curStateFormula())
-        //println("enabled formula: $enabled")
-        val solver = context.mkSolver()
+    override fun enabledActions(ctx : Context): Set<SymAction> {
+        val enabled = ctx.mkAnd(incAct.getEnabledExpr().translate(ctx), curStateFormula(ctx))
+        val solver = ctx.mkSolver()
         solver.add(enabled)
         return if (solver.check() == Status.SATISFIABLE) {
             setOf(incAct)
@@ -24,18 +18,12 @@ class TS1(
     }
 
     override fun transit(act : ConcreteAction) {
-        val inc = act.lookup("inc")
-        if (inc is Int) {
-            i += inc
-        } else {
-            throw RuntimeException("TS1: inc is the wrong type!")
-        }
+        val inc = act.lookupInt("inc")
+        i += inc
     }
 
-    private fun curStateFormula() : BoolExpr {
-        val initState = context.mkEq(context.mkIntConst("i"), context.mkInt(i))
-        //return Formula(initState, context)
-        return initState
+    private fun curStateFormula(ctx : Context) : BoolExpr {
+        return ctx.mkEq(ctx.mkIntConst("i"), ctx.mkInt(i))
     }
 
     override fun toString(): String {
@@ -43,26 +31,38 @@ class TS1(
     }
 }
 
-fun main(args : Array<String>) {
+fun trial1() {
     val context = Context()
     //val actForm = context.mkLe(context.mkIntConst("i"), context.mkInt(10))
     val actForm = context.mkAnd(context.mkLe(context.mkIntConst("i"), context.mkInt(10)), context.mkGt(context.mkIntConst("inc"), context.mkInt(3)))
     //val enabledFormula = Formula(actForm, context)
-    val inc = SymAction("I", listOf("inc"), actForm, 1, context)
-    val p = Proc("p", TS1(inc, context))
-    p.run()
+    val inc = SymAction("I", listOf("inc"), actForm, 1)
+    val p1 = Proc("p1", TS1(inc))
+    val procs = listOf(p1)
+    val threads = procs.map { Thread(it) }
+    threads.forEach { it.start() }
+    threads.forEach { it.join() }
+}
 
-    /*
-    val ctx = Context()
-    val solver : Solver = ctx.mkSolver()
+fun trial2() {
+    val context = Context()
+    //val actForm = context.mkLe(context.mkIntConst("i"), context.mkInt(10))
+    val actForm = context.mkAnd(context.mkLe(context.mkIntConst("i"), context.mkInt(10)), context.mkGt(context.mkIntConst("inc"), context.mkInt(3)))
+    //val enabledFormula = Formula(actForm, context)
+    val inc = SymAction("I", listOf("inc"), actForm, 2)
+    val p1 = Proc("p1", TS1(inc))
+    val p2 = Proc("p2", TS1(inc))
+    val procs = listOf(p1,p2)
+    val threads = procs.map { Thread(it) }
+    threads.forEach { it.start() }
+    threads.forEach { it.join() }
+}
 
-    val a : BoolExpr = ctx.mkBoolConst("a")
-    solver.add(a)
-
-    println(solver.check())
-    //println(solver.model)
-    println(solver.model.getConstInterp(a))
-    println(solver.model.getConstInterp(ctx.mkBoolConst("a")))
-    println(solver.model.getConstInterp(ctx.mkBoolConst("b")))
-     */
+fun main(args : Array<String>) {
+    for (i in 0..100) {
+        trial1()
+    }
+    for (i in 0..100) {
+        trial2()
+    }
 }

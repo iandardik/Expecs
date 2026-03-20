@@ -4,40 +4,48 @@ import com.microsoft.z3.*
 import java.util.*
 
 // TODO a better name is probably ActionFormula or something like that
-class Formula(
-    private val act : SymAction?, // TODO make this cleaner
-    private val context : Context,
-    private val expr : BoolExpr = act!!.getEnabledFormula()
-) {
-    val solver = context.mkSolver()
+class Formula {
+    private val act : Optional<SymAction>
+    private val expr : Expr<BoolSort>
 
-    fun and(other : Formula) : Formula {
-        if (act == null) {
+    constructor(action : SymAction) {
+        act = Optional.of(action)
+        expr = act.get().getEnabledExpr()
+    }
+
+    constructor(expression : Expr<BoolSort>) {
+        act = Optional.empty()
+        expr = expression
+    }
+
+    private constructor(action : Optional<SymAction>, expression : Expr<BoolSort>) {
+        act = action
+        expr = expression
+    }
+
+    fun and(other : Formula, ctx : Context) : Formula {
+        if (act.isEmpty) {
             return other
         }
-        return Formula(act, context, context.mkAnd(expr, other.expr))
+        if (other.act.isEmpty) {
+            return this
+        }
+        return Formula(act, ctx.mkAnd(expr.translate(ctx), other.expr.translate(ctx)))
     }
 
     /**
      * Returns a model (<ConcreteAction>) if the formula is satisfiable and an empty <Optional> otherwise.
      */
-    fun sat() : Optional<ConcreteAction> {
-        solver.add(expr)
+    fun sat(ctx : Context) : Optional<ConcreteAction> {
+        val solver = ctx.mkSolver()
+        solver.add(expr.translate(ctx))
         return if (solver.check() == Status.SATISFIABLE) {
-            /*
-            // TODO not hardcode this to ints
-            val names = solver.model.constDecls.map { it.name.toString() }
-            // TODO this is disgusting
-            val valMap = names.associateWith { arg -> Integer.parseInt(solver.model.getConstInterp(context.mkIntConst(arg)).toString()) }
-            Optional.of(ConcreteAction(act!!, valMap))
-             */
-            Optional.of(ConcreteAction(act!!, solver.model, context))
+            Optional.of(ConcreteAction(act.get(), solver.model, ctx))
         } else {
             Optional.empty()
         }
     }
 }
-fun tt() : Formula {
-    val ctx = Context()
-    return Formula(null, ctx, ctx.mkTrue())
+fun tt(ctx : Context) : Formula {
+    return Formula(ctx.mkTrue())
 }

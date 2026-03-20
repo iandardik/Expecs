@@ -6,23 +6,23 @@ import com.microsoft.z3.Context
 class SymAction(
     private val name : String,
     private val argNames : List<String>,
-    private val enabledFormula : BoolExpr,
+    private val enabledExpr : BoolExpr,
     private val syncSize : Int,
-    private val context : Context,
 ) {
+    val ctx = Context()
     val channel = SyncChannel(syncSize) { constraints ->
-        val conj = constraints.fold(tt()) { acc, f ->
-            acc.and(f)
+        val conj = constraints.fold(tt(ctx)) { acc, f ->
+            acc.and(f, ctx)
         }
-        conj.sat()
+        conj.sat(ctx)
     }
 
     fun getName() = name
     fun getArgNames() = argNames
-    fun getEnabledFormula() = enabledFormula
+    fun getEnabledExpr() = enabledExpr
 
     fun toEnabledFormula() : Formula {
-        return Formula(this, context, enabledFormula)
+        return Formula(this)
     }
 
     override fun equals(other: Any?): Boolean {

@@ -5,18 +5,19 @@ import com.microsoft.z3.Model
 
 class ConcreteAction(
     private val symAction : SymAction,
-    private val model : Model,
-    private val context : Context,
-    //private val argMap : Map<String, Int>
+    model : Model,
+    ctx : Context,
 ) {
-    fun lookup(arg : String) : Int {
-        //return argMap[arg]!!
-        val intVal = model.eval(context.mkIntConst(arg), true)
-        return Integer.parseInt(intVal.toString())
+    private val valueMap : Map<String,Int> = symAction.getArgNames()
+        .associateWith {
+            val valExpr = model.eval(ctx.mkIntConst(it), true)
+            Integer.parseInt(valExpr.toString())
+        }
+    fun lookupInt(arg : String) : Int {
+        return valueMap[arg]!!
     }
 
-    override fun toString(): String {
-        //return "ConcreteAction($symAction, $argMap)"
-        return "ConcreteAction($symAction): " + symAction.getArgNames().joinToString(",") { "$it->" + lookup(it).toString() }
+    override fun toString() : String {
+        return "ConcreteAction($symAction): " + symAction.getArgNames().joinToString(",") { "$it->" + lookupInt(it).toString() }
     }
 }
