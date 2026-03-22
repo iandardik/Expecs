@@ -18,18 +18,25 @@ class Proc(
             }
             Select(*cases.toTypedArray()).run()
 
-            println("$name cur state: $sys")
+            println("$name cur state:\n$sys\n")
 
             // check for deadlocks
             if (nextAct.isEmpty) {
                 println("$name: Deadlock") // TODO delete
                 return
             }
-            println("$name: ${nextAct.get()}") // TODO delete
+
+            // we do this because the concrete action is created with the SymAction from the winning thread, which may
+            // be a different thread and hence have a different SymAction (with a different transition system).
+            // TODO make this cleaner
+            val myNextSymAct = sys.allActions().filter { it.getName() == nextAct.get().symAction.getName() }.first()
+            val myNextAct = ConcreteAction(nextAct.get(), myNextSymAct)
+
+            println("$name: ${myNextAct}\n") // TODO delete
             //Thread.sleep(1000) // TODO delete
 
             // transit to the next state
-            sys.transit(nextAct.get())
+            sys.transit(myNextAct)
         }
     }
 

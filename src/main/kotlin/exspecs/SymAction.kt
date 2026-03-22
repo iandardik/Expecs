@@ -7,6 +7,7 @@ class SymAction(
     private val name : String,
     private val argNames : List<String>,
     private val enabledExpr : BoolExpr,
+    val updates : Set<StateVarUpdate>,
     val channel : SyncChannel<ConcreteAction,EnabledFormula>
 ) {
 
@@ -21,16 +22,6 @@ class SymAction(
     fun signature() : String {
         return "SymAction: $name(" + argNames.joinToString(",") + ")"
     }
-
-    /*
-    override fun equals(other: Any?): Boolean {
-        return other is SymAction && this.signature() == other.signature()
-    }
-
-    override fun hashCode(): Int {
-        return signature().hashCode()
-    }
-     */
 
     override fun toString(): String {
         return signature()

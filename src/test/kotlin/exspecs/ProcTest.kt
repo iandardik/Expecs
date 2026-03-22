@@ -40,7 +40,7 @@ class ProcTest {
         val context = Context()
         val enabledExpr = context.mkLe(context.mkIntConst("i"), context.mkInt(10))
         val actIChan = createActionChannel(1)
-        val actI = SymAction("I", listOf("inc"), enabledExpr, actIChan)
+        val actI = SymAction("I", listOf("inc"), enabledExpr, setOf(), actIChan)
         val p1 = Proc("p1", OneIntVarTS(actI))
         return listOf(p1)
     }
@@ -49,7 +49,7 @@ class ProcTest {
         val context = Context()
         val enabledExpr = context.mkAnd(context.mkLe(context.mkIntConst("i"), context.mkInt(10)), context.mkGt(context.mkIntConst("inc"), context.mkInt(3)))
         val actIChan = createActionChannel(1)
-        val actI = SymAction("I", listOf("inc"), enabledExpr, actIChan)
+        val actI = SymAction("I", listOf("inc"), enabledExpr, setOf(), actIChan)
         val p1 = Proc("p1", OneIntVarTS(actI))
         return listOf(p1)
     }
@@ -58,9 +58,9 @@ class ProcTest {
         val context = Context()
         val enabledExpr = context.mkAnd(context.mkLe(context.mkIntConst("i"), context.mkInt(10)), context.mkGt(context.mkIntConst("inc"), context.mkInt(3)))
         val actIChan = createActionChannel(2)
-        val actI1 = SymAction("I", listOf("inc"), enabledExpr, actIChan)
+        val actI1 = SymAction("I", listOf("inc"), enabledExpr, setOf(), actIChan)
         val p1 = Proc("p1", OneIntVarTS(actI1))
-        val actI2 = SymAction("I", listOf("inc"), enabledExpr, actIChan)
+        val actI2 = SymAction("I", listOf("inc"), enabledExpr, setOf(), actIChan)
         val p2 = Proc("p2", OneIntVarTS(actI2))
         return listOf(p1,p2)
     }
@@ -70,11 +70,11 @@ class ProcTest {
         val actIChan = createActionChannel(2)
 
         val enabledExpr1 = context.mkAnd(context.mkLe(context.mkIntConst("i"), context.mkInt(10)), context.mkGt(context.mkIntConst("inc"), context.mkInt(1)))
-        val actI1 = SymAction("I", listOf("inc"), enabledExpr1, actIChan)
+        val actI1 = SymAction("I", listOf("inc"), enabledExpr1, setOf(), actIChan)
         val p1 = Proc("p1", OneIntVarTS(actI1))
 
         val enabledExpr2 = context.mkAnd(context.mkLe(context.mkIntConst("i"), context.mkInt(10)), context.mkLt(context.mkIntConst("inc"), context.mkInt(3)))
-        val actI2 = SymAction("I", listOf("inc"), enabledExpr2, actIChan)
+        val actI2 = SymAction("I", listOf("inc"), enabledExpr2, setOf(), actIChan)
         val p2 = Proc("p2", OneIntVarTS(actI2))
 
         return listOf(p1,p2)
@@ -91,6 +91,10 @@ class OneIntVarTS(
     private val incAct : SymAction,
 ) : TransitionSystem {
     private var i = 1
+    override fun allActions(): Set<SymAction> {
+        return setOf(incAct)
+    }
+
     override fun enabledActions(ctx : Context): Set<SymAction> {
         val enabled = ctx.mkAnd(incAct.getEnabledExpr().translate(ctx), curStateFormula(ctx))
         val solver = ctx.mkSolver()
