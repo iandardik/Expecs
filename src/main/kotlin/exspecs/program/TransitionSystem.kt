@@ -21,4 +21,13 @@ interface TransitionSystem {
      * important for thread safety, see: https://stackoverflow.com/questions/25542200/multi-threaded-z3
      */
     fun getContext() : Context
+
+    /**
+     * Reutnrs whether the transition system will terminate itself. If true (default) then the program will not end
+     * before the process terminates; otherwise, the process may be terminated early (this is desirable e.g., for
+     * library processes).
+     */
+    fun selfTerminate() : Boolean {
+        return true
+    }
 }

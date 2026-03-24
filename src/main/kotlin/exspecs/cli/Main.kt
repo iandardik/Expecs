@@ -29,9 +29,9 @@ fun makeTS1() : TransitionSystem {
             )
         ),
         SymbolicAction(
-            ActionSignature("Print", listOf("iVal")),
+            ActionSignature("Println", listOf("msg")),
             ctx.mkAnd(
-                ctx.mkEq(ctx.mkIntConst("iVal"),ctx.mkIntConst("i")),
+                ctx.mkEq(ctx.mkIntConst("msg"),ctx.mkIntConst("i")),
                 ctx.mkOr(
                     ctx.mkLe(ctx.mkIntConst("i"), ctx.mkInt(10)),
                     ctx.mkEq(ctx.mkIntConst("p"), ctx.mkInt(1)),
@@ -69,22 +69,7 @@ fun makeTS2() : TransitionSystem {
     return GenericTransitionSystem(initState, alphabet, "P2", ctx)
 }
 
-fun makeTS3() : TransitionSystem {
-    val ctx = Context()
-    val initState = State(setOf())
-    val alphabet = setOf(
-        SymbolicAction(
-            ActionSignature("Print", listOf("iVal")),
-            ctx.mkTrue(),
-            setOf(),
-            setOf({ _,act -> println("Print: " + act.lookupInt("iVal")) })
-        ),
-    )
-    return GenericTransitionSystem(initState, alphabet, "PrintProc", ctx)
-}
-
 fun main(args : Array<String>) {
-    //val prog = Program(setOf(makeTS1(), makeTS2()))
-    val prog = Program(setOf(makeTS1(), makeTS2(), makeTS3()))
+    val prog = Program(setOf(makeTS1(), makeTS2()))
     prog.run()
 }

@@ -38,13 +38,15 @@ class GenericTransitionSystem(
     initState : State,
     private val alphabet : Set<SymbolicAction>,
     private val name : String,
-    private val ctx : Context
+    private val ctx : Context,
+    private val selfTerminate : Boolean = true,
 ) : TransitionSystem {
     private var state = initState
 
     override fun getName() = name
     override fun getContext() = ctx
     override fun alphabet() = alphabet
+    override fun selfTerminate() = selfTerminate
 
     override fun currentState() : BoolExpr {
         return state.toExpr(ctx)

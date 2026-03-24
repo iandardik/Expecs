@@ -42,6 +42,8 @@ class Proc(
         }
     }
 
+    fun selfTerminate() = transitionSystem.selfTerminate()
+
     override fun toString() : String {
         return "Proc($name)"
     }
