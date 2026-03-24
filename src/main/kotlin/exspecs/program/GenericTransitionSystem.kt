@@ -1,4 +1,4 @@
-package exspecs
+package exspecs.program
 
 import com.microsoft.z3.BoolExpr
 import com.microsoft.z3.Context
@@ -68,7 +68,10 @@ class GenericTransitionSystem(
 
     private fun correspondingSymbolicAction(concAct : ConcreteAction) : SymbolicAction {
         val symActs = alphabet.filter { it.signature == concAct.signature }
-        assert(symActs.size == 1, "correspondingSymbolicAction() expected 1 symAct but found: ${symActs.size}")
+        exspecs.tools.assert(
+            symActs.size == 1,
+            "correspondingSymbolicAction() expected 1 symAct but found: ${symActs.size}"
+        )
         return symActs.first()
     }
 

@@ -1,4 +1,4 @@
-package exspecs
+package exspecs.program
 
 // TODO don't hardcode Ints
 class ConcreteAction(
@@ -7,10 +7,13 @@ class ConcreteAction(
 ) {
     init {
         signature.args.forEach {
-            assert(valueMap.containsKey(it), "ConcreteAction missing entry in valueMap")
+            exspecs.tools.assert(valueMap.containsKey(it), "ConcreteAction missing entry in valueMap")
         }
         valueMap.keys.forEach {
-            assert(signature.args.toSet().contains(it), "ConcreteAction has an extraneous entry in valueMap")
+            exspecs.tools.assert(
+                signature.args.toSet().contains(it),
+                "ConcreteAction has an extraneous entry in valueMap"
+            )
         }
     }
 

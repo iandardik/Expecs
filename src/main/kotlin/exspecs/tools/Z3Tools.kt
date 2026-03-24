@@ -1,4 +1,4 @@
-package exspecs
+package exspecs.tools
 
 import com.microsoft.z3.*
 

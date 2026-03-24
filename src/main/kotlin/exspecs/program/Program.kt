@@ -1,8 +1,9 @@
-package exspecs
+package exspecs.program
 
 import com.microsoft.z3.BoolExpr
 import com.microsoft.z3.Context
 import com.microsoft.z3.Status
+import exspecs.concurrency.SyncChannel
 import java.util.*
 
 /**
@@ -25,7 +26,9 @@ class Program : Runnable {
             val ctx = Context()
             SyncChannel<ConcreteAction,BoolExpr>(syncSize) { constraints ->
                 val solver = ctx.mkSolver()
-                constraints.forEach { c -> solver.add(c.translate(ctx)) } // TODO double check that translate() is needed
+                // c.translate(ctx) is key because each constraint will come from a different thread, and hence are
+                // created by different Contexts.
+                constraints.forEach { c -> solver.add(c.translate(ctx)) }
                 if (solver.check() == Status.SATISFIABLE) {
                     // TODO make this generic, rather than specific to Ints
                     val valueMap = act.args.associateWith {

@@ -1,4 +1,4 @@
-package exspecs
+package exspecs.concurrency
 
 import java.lang.RuntimeException
 import java.util.*
@@ -15,13 +15,13 @@ class Select(private vararg val cases : Case) : Runnable {
         val numCases = cases.size
         val numChannels = cases.map { it.getChannelHash() }.toSet().size
         if (numCases != numChannels) {
-            throw RuntimeException("Each Case in a exspecs.Select must use a unique channel")
+            throw RuntimeException("Each Case in a exspecs.concurrency.Select must use a unique channel")
         }
 
         // make sure that each cases isn't already associated with a select
         cases.forEach {
             if (it.hasSelect()) {
-                throw RuntimeException("A Case must only be associated with a single exspecs.Select")
+                throw RuntimeException("A Case must only be associated with a single exspecs.concurrency.Select")
             }
         }
 
@@ -33,14 +33,14 @@ class Select(private vararg val cases : Case) : Runnable {
         return winner.isEmpty || winner.get() == chanHash
     }
     fun doCommit(chanHash : Int) {
-        assert(canCommit(chanHash))
+        exspecs.tools.assert(canCommit(chanHash))
         winner = Optional.of(chanHash)
     }
 
     override fun run() {
         // make sure that run() is only ever run once
         if (winner.isPresent) {
-            throw RuntimeException("exspecs.Select run multiple times")
+            throw RuntimeException("exspecs.concurrency.Select run multiple times")
         }
         if (cases.isEmpty()) {
             return
@@ -57,7 +57,7 @@ class Select(private vararg val cases : Case) : Runnable {
         finally {
             lock.unlock()
         }
-        assert(winner.isPresent)
+        exspecs.tools.assert(winner.isPresent)
         threads.forEach {
             it.interrupt()
         }
@@ -91,8 +91,8 @@ class Select(private vararg val cases : Case) : Runnable {
                 val ret = chan.sync(constraint, selectRef)
                 done = ret.isPresent || select.winner.isPresent
                 if (ret.isPresent) {
-                    assert(select.winner.get() == chan.hashCode())
-                    assert(done)
+                    exspecs.tools.assert(select.winner.get() == chan.hashCode())
+                    exspecs.tools.assert(done)
                     callback.invoke(ret.get())
                     try {
                         select.lock.lock()

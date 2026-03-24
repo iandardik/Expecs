@@ -1,4 +1,4 @@
-package exspecs
+package exspecs.concurrency
 
 import org.testng.Assert.*
 import org.testng.annotations.Test
@@ -30,7 +30,7 @@ class SelectTest {
 
     private fun businessLogic1Case(syncSize : Int, numThreads : Int) {
         // if this is false then some threads will hang
-        assert(numThreads % syncSize == 0)
+        exspecs.tools.assert(numThreads % syncSize == 0)
 
         val incVal = AtomicInteger(1)
         val results = ConcurrentHashMap<Int,Int>() // value -> count
@@ -78,7 +78,7 @@ class SelectTest {
 
     private fun businessLogic2Cases(syncSize : Int, numThreads : Int) {
         // if this is false then some threads will hang
-        assert(numThreads % syncSize == 0)
+        exspecs.tools.assert(numThreads % syncSize == 0)
 
         val incVal = AtomicInteger(1)
         val results = ConcurrentHashMap<Int,Int>() // value -> count
@@ -127,7 +127,7 @@ class SelectTest {
 
     private fun businessLogic1and2Cases(syncSize : Int, numThreads : Int) {
         // if this is false then some threads will hang
-        assert(numThreads % syncSize == 0)
+        exspecs.tools.assert(numThreads % syncSize == 0)
 
         val incVal = AtomicInteger(1)
         val results = ConcurrentHashMap<Int,Int>() // value -> count
@@ -183,7 +183,7 @@ class SelectTest {
 
     private fun businessLogic3and4Cases(syncSize : Int, numThreads : Int) {
         // if this is false then some threads will hang
-        assert(numThreads % syncSize == 0)
+        exspecs.tools.assert(numThreads % syncSize == 0)
 
         val incVal = AtomicInteger(1)
         val results = ConcurrentHashMap<Int,Int>() // value -> count

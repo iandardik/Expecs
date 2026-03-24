@@ -1,4 +1,4 @@
-package exspecs
+package exspecs.concurrency
 
 import org.testng.Assert.assertEquals
 import org.testng.Assert.assertTrue
@@ -31,7 +31,7 @@ class SyncChannelTest {
 
     private fun businessLogic1Channel(syncSize : Int, numThreads : Int) {
         // if this is false then some threads will hang
-        assert(numThreads % syncSize == 0)
+        exspecs.tools.assert(numThreads % syncSize == 0)
 
         val incVal = AtomicInteger(1)
         val results = ConcurrentHashMap<Int,Int>() // value -> count
@@ -79,7 +79,7 @@ class SyncChannelTest {
 
     private fun businessLogic2Channels(syncSize : Int, numThreads : Int) {
         // if this is false then some threads will hang
-        assert(numThreads % syncSize == 0)
+        exspecs.tools.assert(numThreads % syncSize == 0)
 
         val incVal = AtomicInteger(1)
         val results = ConcurrentHashMap<Int,Int>() // value -> count
@@ -128,7 +128,7 @@ class SyncChannelTest {
     @Test
     fun testOneChannelCancellation() {
         val randGen = { Random().nextInt() }
-        val chan1 = exspecs.SyncChannel<Int>(2, randGen)
+        val chan1 = exspecs.concurrency.SyncChannel<Int>(2, randGen)
         for (i in 0.. 100) {
             val ffun : (Int)->Boolean = { false }
             val t1 = Thread {

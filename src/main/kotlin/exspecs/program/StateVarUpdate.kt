@@ -1,4 +1,4 @@
-package exspecs
+package exspecs.program
 
 /**
  * Represents the expression in an update: var := <expr>.

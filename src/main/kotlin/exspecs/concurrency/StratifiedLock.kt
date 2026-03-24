@@ -1,4 +1,4 @@
-package exspecs
+package exspecs.concurrency
 
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.Condition

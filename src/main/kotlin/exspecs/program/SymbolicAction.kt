@@ -1,4 +1,4 @@
-package exspecs
+package exspecs.program
 
 import com.microsoft.z3.BoolExpr
 

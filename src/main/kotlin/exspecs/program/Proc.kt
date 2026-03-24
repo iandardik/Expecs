@@ -1,12 +1,14 @@
-package exspecs
+package exspecs.program
 
 import com.microsoft.z3.Status
 import com.microsoft.z3.BoolExpr
+import exspecs.concurrency.Select
+import exspecs.concurrency.SyncChannel
 import java.util.*
 
 class Proc(
     private val transitionSystem : TransitionSystem,
-    private val channelTable : Map<ActionSignature, SyncChannel<ConcreteAction,BoolExpr>>
+    private val channelTable : Map<ActionSignature, SyncChannel<ConcreteAction, BoolExpr>>
 ) : Runnable {
     private val name = transitionSystem.getName()
     private val ctx = transitionSystem.getContext()

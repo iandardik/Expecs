@@ -1,7 +1,4 @@
-package exspecs
-
-import java.lang.Exception
-import java.lang.RuntimeException
+package exspecs.program
 
 interface UpdateExpr<T> {
     fun eval(state : State, act : ConcreteAction) : T

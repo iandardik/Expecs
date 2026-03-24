@@ -1,7 +1,8 @@
-package exspecs
+package exspecs.program
 
 import com.microsoft.z3.BoolExpr
 import com.microsoft.z3.Context
+import exspecs.tools.mkStringConst
 
 class VarName(
     val name : String

@@ -1,4 +1,4 @@
-package exspecs
+package exspecs.program
 
 /**
  * Represents the signature to an action, excluding its types (for now).
