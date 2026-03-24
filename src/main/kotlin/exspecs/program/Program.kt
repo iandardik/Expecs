@@ -23,7 +23,7 @@ class Program : Runnable {
         val actionCounts = actionBag.toSet().associateWith { setAct -> actionBag.count { bagAct -> bagAct == setAct } }
         val channelTable = actionCounts.keys.associateWith { act ->
             val syncSize = actionCounts[act]!!
-            val ctx = Context()
+            val ctx = Context() // one Context per channel
             SyncChannel<ConcreteAction,BoolExpr>(syncSize) { constraints ->
                 val solver = ctx.mkSolver()
                 // c.translate(ctx) is key because each constraint will come from a different thread, and hence are

@@ -11,4 +11,5 @@ data class SymbolicAction(
     val signature : ActionSignature,
     val guard : BoolExpr,
     val varUpdates : Set<StateVarUpdate>,
+    val sideEffects : Set<(State,ConcreteAction)->Unit> = emptySet(),
 ) {}

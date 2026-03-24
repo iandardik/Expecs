@@ -24,22 +24,18 @@ class Proc(
             }
             val cases = enabledActions.map { symAct ->
                 val channel = channelTable[symAct.signature]!!
-                Select.SyncCase(channel, symAct.guard) { concAct : ConcreteAction ->
+                val guard = ctx.mkAnd(symAct.guard, transitionSystem.currentState())
+                Select.SyncCase(channel, guard) { concAct : ConcreteAction ->
                     nextAct = Optional.of(concAct)
                 }
             }
             Select(*cases.toTypedArray()).run()
 
-            println("$name cur state:\n$transitionSystem\n")
-
             // check for deadlocks
             if (nextAct.isEmpty) {
-                println("$name: Deadlock") // TODO delete
+                println("$name deadlock")
                 return
             }
-
-            println("$name: ${nextAct.get()}\n") // TODO delete
-            //Thread.sleep(1000) // TODO delete
 
             // transit to the next state
             transitionSystem.transit(nextAct.get())
