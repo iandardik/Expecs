@@ -2,7 +2,6 @@ package exspecs
 
 import com.microsoft.z3.BoolExpr
 import com.microsoft.z3.Context
-import com.microsoft.z3.Status
 import java.lang.RuntimeException
 
 class State(
@@ -35,34 +34,29 @@ class State(
     }
 }
 
-class GenericTransitionSystem : TransitionSystem {
-    private val actions : Set<SymAction>
-    private var state : State
+class GenericTransitionSystem(
+    initState : State,
+    private val alphabet : Set<SymbolicAction>,
+    private val name : String,
+    private val ctx : Context
+) : TransitionSystem {
+    private var state = initState
 
-    constructor(acts : Set<SymAction>, initState : State) {
-        actions = acts
-        state = initState
-    }
+    override fun getName() = name
+    override fun getContext() = ctx
+    override fun alphabet() = alphabet
 
-    // TODO add constructor that accepts builders
-
-    override fun allActions() = actions
-
-    override fun enabledActions(ctx : Context): Set<SymAction> {
-        return actions.filter {
-            val enabled = ctx.mkAnd(it.getEnabledExpr().translate(ctx), curStateFormula(ctx))
-            val solver = ctx.mkSolver()
-            solver.add(enabled)
-            solver.check() == Status.SATISFIABLE
-        }.toSet()
+    override fun currentState() : BoolExpr {
+        return state.toExpr(ctx)
     }
 
     /**
      * Adds an implicit frame condition for variables to remain the same if they are not mentioned in <updates>
      */
-    override fun transit(act : ConcreteAction) {
-        val explicitlyUpdatedAssignments = act.symAction.updates
-            .map { update -> update.updateAssignment(state,act) }
+    override fun transit(concAct : ConcreteAction) {
+        val symAct = correspondingSymbolicAction(concAct)
+        val explicitlyUpdatedAssignments = symAct.varUpdates
+            .map { update -> update.updateAssignment(state,concAct) }
             .toSet()
         val explicitlyUpdatedVarNames = explicitlyUpdatedAssignments.map { it.varName() }.toSet()
         val frameUpdateAssignments = state.assignments
@@ -72,12 +66,14 @@ class GenericTransitionSystem : TransitionSystem {
         state = State(allUpdatedAssignments)
     }
 
-    private fun curStateFormula(ctx : Context) : BoolExpr {
-        return state.toExpr(ctx)
+    private fun correspondingSymbolicAction(concAct : ConcreteAction) : SymbolicAction {
+        val symActs = alphabet.filter { it.signature == concAct.signature }
+        assert(symActs.size == 1, "correspondingSymbolicAction() expected 1 symAct but found: ${symActs.size}")
+        return symActs.first()
     }
 
-    // TODO we can probably do better than this
     override fun toString(): String {
+        // TODO we can probably do better than this
         return state.toString()
         //return state.toString() + "\nupdates:\n" + actions.map { it.updates.joinToString(", ") }
     }

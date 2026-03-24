@@ -1,21 +1,17 @@
 package exspecs
 
-import com.microsoft.z3.*
-
-class ConcreteAction {
-    private val valueMap : Map<String,Int>
-    val symAction : SymAction
-    constructor(symAction : SymAction, model : Model, ctx : Context) {
-        this.symAction = symAction
-        valueMap = symAction.getArgNames()
-            .associateWith {
-                val valExpr = model.eval(ctx.mkIntConst(it), true)
-                Integer.parseInt(valExpr.toString())
-            }
-    }
-    constructor(other : ConcreteAction, newSymAct : SymAction) {
-        symAction = newSymAct
-        valueMap = other.valueMap
+// TODO don't hardcode Ints
+class ConcreteAction(
+    val signature : ActionSignature,
+    private val valueMap : Map<String,Int>,
+) {
+    init {
+        signature.args.forEach {
+            assert(valueMap.containsKey(it), "ConcreteAction missing entry in valueMap")
+        }
+        valueMap.keys.forEach {
+            assert(signature.args.toSet().contains(it), "ConcreteAction has an extraneous entry in valueMap")
+        }
     }
 
     fun hasVar(arg : VarName) : Boolean {
@@ -27,6 +23,6 @@ class ConcreteAction {
     }
 
     override fun toString() : String {
-        return "ConcreteAction($symAction): " + symAction.getArgNames().joinToString(",") { "$it->" + lookupInt(it).toString() }
+        return "ConcreteAction($signature): " + signature.args.joinToString(",") { "$it->" + lookupInt(it).toString() }
     }
 }

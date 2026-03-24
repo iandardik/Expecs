@@ -1,24 +1,34 @@
 package exspecs
 
-import com.microsoft.z3.Context
+import com.microsoft.z3.Status
+import com.microsoft.z3.BoolExpr
 import java.util.*
 
 class Proc(
-    private val name : String,
-    private val sys : TransitionSystem
+    private val transitionSystem : TransitionSystem,
+    private val channelTable : Map<ActionSignature, SyncChannel<ConcreteAction,BoolExpr>>
 ) : Runnable {
-    private val ctx = Context()
+    private val name = transitionSystem.getName()
+    private val ctx = transitionSystem.getContext()
+
     override fun run() {
         while (true) {
             var nextAct = Optional.empty<ConcreteAction>()
-            val cases = sys.enabledActions(ctx).map { symAct ->
-                Select.SyncCase(symAct.channel, symAct.toEnabledFormula()) { concAct : ConcreteAction ->
+            val enabledActions = transitionSystem.alphabet().filter {
+                val enabled = ctx.mkAnd(it.guard, transitionSystem.currentState())
+                val solver = ctx.mkSolver()
+                solver.add(enabled)
+                solver.check() == Status.SATISFIABLE
+            }
+            val cases = enabledActions.map { symAct ->
+                val channel = channelTable[symAct.signature]!!
+                Select.SyncCase(channel, symAct.guard) { concAct : ConcreteAction ->
                     nextAct = Optional.of(concAct)
                 }
             }
             Select(*cases.toTypedArray()).run()
 
-            println("$name cur state:\n$sys\n")
+            println("$name cur state:\n$transitionSystem\n")
 
             // check for deadlocks
             if (nextAct.isEmpty) {
@@ -26,21 +36,15 @@ class Proc(
                 return
             }
 
-            // we do this because the concrete action is created with the SymAction from the winning thread, which may
-            // be a different thread and hence have a different SymAction (with a different transition system).
-            // TODO make this cleaner
-            val myNextSymAct = sys.allActions().filter { it.getName() == nextAct.get().symAction.getName() }.first()
-            val myNextAct = ConcreteAction(nextAct.get(), myNextSymAct)
-
-            println("$name: ${myNextAct}\n") // TODO delete
+            println("$name: ${nextAct.get()}\n") // TODO delete
             //Thread.sleep(1000) // TODO delete
 
             // transit to the next state
-            sys.transit(myNextAct)
+            transitionSystem.transit(nextAct.get())
         }
     }
 
-    override fun toString(): String {
+    override fun toString() : String {
         return "Proc($name)"
     }
 }
