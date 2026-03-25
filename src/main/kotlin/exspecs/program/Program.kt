@@ -67,7 +67,7 @@ class Program : Runnable {
     }
 
     /**
-     * Does not call exitProccess(); this is useful for testing.
+     * Does not call exitProcess(); this is useful for testing.
      */
     fun testRun() {
         val threads = procs.map { Pair(it,Thread(it)) }
