@@ -8,7 +8,7 @@ fun makePrintln() : TransitionSystem {
     val initState = State(setOf())
     val alphabet = setOf(
         SymbolicAction(
-            ActionSignature("Println", listOf(Variable("msg","Int"))),
+            ActionSignature("Println", listOf(Variable("msg","Int"))), // TODO make the type a String
             ctx.mkTrue(),
             setOf(),
             setOf({ _,act -> println(act.lookup(Variable("msg","Int"))) })
