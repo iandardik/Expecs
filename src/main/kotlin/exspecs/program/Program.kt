@@ -59,7 +59,7 @@ class Program : Runnable {
         threads.forEach { (_,thread) -> thread.start() }
         val selfTerminatingThreads = threads.filter { (proc,_) -> proc.selfTerminate() }
         selfTerminatingThreads.forEach { (_,thread) -> thread.join() }
-        exitProcess(0)
+        exitProcess(0) // TODO create a SyncChannel.close() function so we can get rid of this
     }
 
     /**
