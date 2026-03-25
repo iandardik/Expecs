@@ -25,17 +25,17 @@ class IntUpdateExpr(
 }
 
 class IntVarUpdateExpr(
-    private val varName : VarName
+    private val variable : Variable
 ) : UpdateExpr<Int> {
     override fun eval(state : State, act : ConcreteAction) : Int {
         // action parameters are at a tighter scope than the state variables
-        if (act.hasVar(varName)) {
-            return act.lookupInt(varName.name) // TODO clean up the VarName stuff
+        if (act.hasArg(variable)) {
+            return act.lookup(variable) as Int
         }
-        return state.lookupIntVal(varName)
+        return state.lookup(variable) as Int
     }
     override fun toString(): String {
-        return "$varName"
+        return "$variable"
     }
 }
 
@@ -69,7 +69,7 @@ class LeIntUpdateExpr(
     }
 }
 
-class StrUpdateExpr(
+class StringUpdateExpr(
     private val strValue : String
 ) : UpdateExpr<String> {
     override fun eval(state : State, act : ConcreteAction) : String {
@@ -77,10 +77,10 @@ class StrUpdateExpr(
     }
 }
 
-class StrVarUpdateExpr(
-    private val varName : VarName
+class StringVarUpdateExpr(
+    private val variable : Variable
 ) : UpdateExpr<String> {
     override fun eval(state : State, act : ConcreteAction) : String {
-        return state.lookupStrVal(varName)
+        return state.lookup(variable) as String
     }
 }

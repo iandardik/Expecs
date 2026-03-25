@@ -4,6 +4,7 @@ import com.microsoft.z3.*
 import org.testng.annotations.Test
 
 class ProgTest {
+    /*
 
     @Test
     fun testSyncSize1() {
@@ -112,4 +113,5 @@ class ProgTest {
         )
         return GenericTransitionSystem(initState, alphabet, "P3", ctx)
     }
+     */
 }

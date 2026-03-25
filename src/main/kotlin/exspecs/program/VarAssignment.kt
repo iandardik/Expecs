@@ -2,66 +2,71 @@ package exspecs.program
 
 import com.microsoft.z3.BoolExpr
 import com.microsoft.z3.Context
+import com.microsoft.z3.Model
 import exspecs.tools.mkStringConst
 
-class VarName(
-    val name : String
-) {
-    override fun toString(): String {
-        return name
-    }
-    override fun equals(other: Any?): Boolean {
-        return other is VarName && name == other.name
-    }
-    override fun hashCode(): Int {
-        return name.hashCode()
+fun createVarAssignment(variable : Variable, ctx : Context, model : Model) : VarAssignment {
+    return when (variable.type) {
+        "Int" -> {
+            val valExpr = model.eval(ctx.mkIntConst(variable.name), true)
+            val intVal = Integer.parseInt(valExpr.toString())
+            IntVarAssignment(variable, intVal)
+        }
+        "String" -> {
+            val valExpr = model.eval(ctx.mkStringConst(variable.name), true)
+            val intVal = Integer.parseInt(valExpr.toString())
+            IntVarAssignment(variable, intVal)
+        }
+        else -> throw RuntimeException("createVarAssignment(): Unsupported type: ${variable.type}")
     }
 }
 
 interface VarAssignment {
-    fun varName() : VarName
+    fun getVariable() : Variable
     fun toExpr(ctx : Context) : BoolExpr
-    fun value() : Any
+    fun getValue() : Any
 }
 
-abstract class NamedVarAssignment(
-    private val varName : VarName
+abstract class VarAssignmentBase(
+    private val variable : Variable
 ) : VarAssignment {
-    override fun varName() : VarName = varName
+    override fun getVariable() = variable
     override fun equals(other: Any?): Boolean {
-        return other is NamedVarAssignment && varName == other.varName
+        return other is VarAssignmentBase && variable == other.variable
     }
     override fun hashCode(): Int {
-        return varName.hashCode()
+        return variable.hashCode()
     }
 }
 
 class IntVarAssignment(
-    varName : VarName,
-    private val varVal : Int
-) : NamedVarAssignment(varName) {
+    variable : Variable,
+    private val value : Int
+) : VarAssignmentBase(variable) {
+    init {
+        exspecs.tools.assert(variable.type == "Int", "IntVarAssignment expected variable of type Int")
+    }
     override fun toExpr(ctx : Context) : BoolExpr {
-        return ctx.mkEq(ctx.mkIntConst(varName().name), ctx.mkInt(varVal))
+        return ctx.mkEq(ctx.mkIntConst(getVariable().name), ctx.mkInt(value))
     }
     override fun toString(): String {
-        return "${varName()} |-> $varVal"
+        return "${getVariable()} |-> $value"
     }
-    override fun value(): Any {
-        return varVal
-    }
+    override fun getValue() = value
 }
 
 class StringVarAssignment(
-    varName : VarName,
-    private val varVal : String
-) : NamedVarAssignment(varName) {
+    variable : Variable,
+    private val value : String
+) : VarAssignmentBase(variable) {
+    init {
+        exspecs.tools.assert(variable.type == "String", "StringVarAssignment expected variable of type String")
+    }
     override fun toExpr(ctx : Context) : BoolExpr {
-        return ctx.mkEq(mkStringConst(varName().name,ctx), ctx.mkString(varVal))
+        return ctx.mkEq(ctx.mkStringConst(getVariable().name), ctx.mkString(value))
     }
     override fun toString(): String {
-        return "${varName()} |-> $varVal"
+        return "${getVariable()} |-> $value"
     }
-    override fun value(): Any {
-        return varVal
-    }
+    override fun getValue() = value
 }

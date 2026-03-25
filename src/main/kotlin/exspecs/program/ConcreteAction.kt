@@ -1,31 +1,29 @@
 package exspecs.program
 
-// TODO don't hardcode Ints
+import exspecs.tools.assert
+
 class ConcreteAction(
     val signature : ActionSignature,
-    private val valueMap : Map<String,Int>,
+    private val argValues : Set<VarAssignment>,
 ) {
     init {
-        signature.args.forEach {
-            exspecs.tools.assert(valueMap.containsKey(it), "ConcreteAction missing entry in valueMap")
-        }
-        valueMap.keys.forEach {
-            exspecs.tools.assert(
-                signature.args.toSet().contains(it),
-                "ConcreteAction has an extraneous entry in valueMap"
-            )
-        }
+        val variablesInSignature = signature.args.toSet()
+        val variablesAssigned = argValues.map { it.getVariable() }.toSet()
+        assert(variablesInSignature == variablesAssigned,
+            "ConcreteAction: expected sig and assigned variables to be identical")
     }
 
-    fun hasVar(arg : VarName) : Boolean {
-        return valueMap.containsKey(arg.name)
+    fun hasArg(arg : Variable) : Boolean {
+        return argValues.any { it.getVariable() == arg }
     }
 
-    fun lookupInt(arg : String) : Int {
-        return valueMap[arg]!!
+    fun lookup(arg : Variable) : Any {
+        val argMatches = argValues.filter { it.getVariable() == arg }
+        assert(argMatches.size == 1, "ConcreteAction: expected one assignment to variable: $arg")
+        return argMatches.first().getValue()
     }
 
     override fun toString() : String {
-        return "ConcreteAction($signature): " + signature.args.joinToString(",") { "$it->" + lookupInt(it).toString() }
+        return "ConcreteAction($signature): $argValues"
     }
 }

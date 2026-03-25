@@ -6,7 +6,7 @@ package exspecs.program
  */
 data class ActionSignature(
     val name : String,
-    val args : List<String>
+    val args : List<Variable>
 ) {
     override fun toString(): String {
         return "$name(" + args.joinToString(",") + ")"

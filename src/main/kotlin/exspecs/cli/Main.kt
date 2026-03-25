@@ -2,45 +2,46 @@ package exspecs.cli
 
 import com.microsoft.z3.*
 import exspecs.program.*
+import exspecs.tools.mkStringConst
 
 fun makeTS1() : TransitionSystem {
     val ctx = Context()
     val initState = State(setOf(
-        IntVarAssignment(VarName("i"), 0),
-        IntVarAssignment(VarName("p"), 0),
+        IntVarAssignment(Variable("i","Int"), 0),
+        StringVarAssignment(Variable("p","String"), "false"),
     ))
     val alphabet = setOf(
         SymbolicAction(
-            ActionSignature("I", listOf("inc")),
+            ActionSignature("I", listOf(Variable("inc","Int"))),
             ctx.mkAnd(
                 ctx.mkLe(ctx.mkIntConst("i"), ctx.mkInt(10)),
-                ctx.mkEq(ctx.mkIntConst("p"), ctx.mkInt(0)),
+                ctx.mkEq(ctx.mkStringConst("p"), ctx.mkString("false")),
                 ctx.mkGt(ctx.mkIntConst("inc"), ctx.mkInt(2)),
             ),
             setOf(
                 IntStateVarUpdate(
-                    VarName("i"),
-                    PlusIntUpdateExpr(IntVarUpdateExpr(VarName("i")), IntVarUpdateExpr(VarName("inc")))
+                    Variable("i","Int"),
+                    PlusIntUpdateExpr(IntVarUpdateExpr(Variable("i","Int")), IntVarUpdateExpr(Variable("inc","Int")))
                 ),
-                IntStateVarUpdate(
-                    VarName("p"),
-                    IntUpdateExpr(1)
+                StringStateVarUpdate(
+                    Variable("p","String"),
+                    StringUpdateExpr("true")
                 ),
             )
         ),
         SymbolicAction(
-            ActionSignature("Println", listOf("msg")),
+            ActionSignature("Println", listOf(Variable("msg","Int"))),
             ctx.mkAnd(
                 ctx.mkEq(ctx.mkIntConst("msg"),ctx.mkIntConst("i")),
                 ctx.mkOr(
-                    ctx.mkLe(ctx.mkIntConst("i"), ctx.mkInt(10)),
-                    ctx.mkEq(ctx.mkIntConst("p"), ctx.mkInt(1)),
+                    ctx.mkEq(ctx.mkStringConst("p"), ctx.mkString("true")),
+                    ctx.mkAnd(ctx.mkLe(ctx.mkIntConst("i"), ctx.mkInt(10)), ctx.mkEq(ctx.mkStringConst("p"), ctx.mkString("true"))),
                 ),
             ),
             setOf(
-                IntStateVarUpdate(
-                    VarName("p"),
-                    IntUpdateExpr(0)
+                StringStateVarUpdate(
+                    Variable("p","String"),
+                    StringUpdateExpr("false")
                 ),
             )
         ),
@@ -50,18 +51,18 @@ fun makeTS1() : TransitionSystem {
 
 fun makeTS2() : TransitionSystem {
     val ctx = Context()
-    val initState = State(setOf(IntVarAssignment(VarName("i"), 0)))
+    val initState = State(setOf(IntVarAssignment(Variable("i","Int"), 0)))
     val alphabet = setOf(
         SymbolicAction(
-            ActionSignature("I", listOf("inc")),
+            ActionSignature("I", listOf(Variable("inc","Int"))),
             ctx.mkAnd(
                 ctx.mkLe(ctx.mkIntConst("i"), ctx.mkInt(10)),
                 ctx.mkEq(ctx.mkMod(ctx.mkIntConst("inc"), ctx.mkInt(2)), ctx.mkInt(0))
             ),
             setOf(
                 IntStateVarUpdate(
-                    VarName("i"),
-                    PlusIntUpdateExpr(IntVarUpdateExpr(VarName("i")), IntVarUpdateExpr(VarName("inc")))
+                    Variable("i","Int"),
+                    PlusIntUpdateExpr(IntVarUpdateExpr(Variable("i","Int")), IntVarUpdateExpr(Variable("inc","Int")))
                 ),
             )
         ),
@@ -70,6 +71,9 @@ fun makeTS2() : TransitionSystem {
 }
 
 fun main(args : Array<String>) {
-    val prog = Program(setOf(makeTS1(), makeTS2()))
-    prog.run()
+    println("Program 1:")
+    Program(setOf(makeTS1(), makeTS2())).testRun()
+    println()
+    println("Program 2:")
+    Program(setOf(makeTS1())).run()
 }

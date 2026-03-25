@@ -10,25 +10,25 @@ interface StateVarUpdate {
 }
 
 class IntStateVarUpdate(
-    private val varName : VarName,
+    private val variable : Variable,
     private val updateExpr : UpdateExpr<Int>
 ) : StateVarUpdate {
     override fun updateAssignment(state : State, act : ConcreteAction) : VarAssignment {
-        return IntVarAssignment(varName, updateExpr.eval(state, act))
+        return IntVarAssignment(variable, updateExpr.eval(state, act))
     }
     override fun toString(): String {
-        return "$varName := $updateExpr"
+        return "${variable.name} := $updateExpr"
     }
 }
 
 class StringStateVarUpdate(
-    private val varName : VarName,
+    private val variable : Variable,
     private val updateExpr : UpdateExpr<String>
 ) : StateVarUpdate {
     override fun updateAssignment(state : State, act : ConcreteAction) : VarAssignment {
-        return StringVarAssignment(varName, updateExpr.eval(state, act))
+        return StringVarAssignment(variable, updateExpr.eval(state, act))
     }
     override fun toString(): String {
-        return "$varName := $updateExpr"
+        return "${variable.name} := $updateExpr"
     }
 }

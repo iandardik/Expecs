@@ -44,12 +44,8 @@ class Program : Runnable {
                 // created by different Contexts.
                 constraints.forEach { c -> solver.add(c.translate(ctx)) }
                 if (solver.check() == Status.SATISFIABLE) {
-                    // TODO make this generic, rather than specific to Ints
-                    val valueMap = act.args.associateWith {
-                        val valExpr = solver.model.eval(ctx.mkIntConst(it), true)
-                        Integer.parseInt(valExpr.toString())
-                    }
-                    Optional.of(ConcreteAction(act, valueMap))
+                    val argValues = act.args.map { createVarAssignment(it,ctx,solver.model) }.toSet()
+                    Optional.of(ConcreteAction(act, argValues))
                 } else {
                     Optional.empty()
                 }

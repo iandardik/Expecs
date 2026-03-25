@@ -8,10 +8,10 @@ fun makePrintln() : TransitionSystem {
     val initState = State(setOf())
     val alphabet = setOf(
         SymbolicAction(
-            ActionSignature("Println", listOf("msg")),
+            ActionSignature("Println", listOf(Variable("msg","Int"))),
             ctx.mkTrue(),
             setOf(),
-            setOf({ _,act -> println(act.lookupInt("msg")) })
+            setOf({ _,act -> println(act.lookup(Variable("msg","Int"))) })
         ),
     )
     // set selfTerminate to false because this is a library function
