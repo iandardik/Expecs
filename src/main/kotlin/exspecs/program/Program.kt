@@ -65,4 +65,14 @@ class Program : Runnable {
         selfTerminatingThreads.forEach { (_,thread) -> thread.join() }
         exitProcess(0)
     }
+
+    /**
+     * Does not call exitProccess(); this is useful for testing.
+     */
+    fun testRun() {
+        val threads = procs.map { Pair(it,Thread(it)) }
+        threads.forEach { (_,thread) -> thread.start() }
+        val selfTerminatingThreads = threads.filter { (proc,_) -> proc.selfTerminate() }
+        selfTerminatingThreads.forEach { (_,thread) -> thread.join() }
+    }
 }

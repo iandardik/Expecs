@@ -33,7 +33,7 @@ class Proc(
 
             // check for deadlocks
             if (nextAct.isEmpty) {
-                println("$name deadlock")
+                //println("$name deadlock")
                 return
             }
 

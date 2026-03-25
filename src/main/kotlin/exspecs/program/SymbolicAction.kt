@@ -11,5 +11,9 @@ data class SymbolicAction(
     val signature : ActionSignature,
     val guard : BoolExpr,
     val varUpdates : Set<StateVarUpdate>,
+
+    /**
+     * All side effects take place before executing the ConcreteAction.
+     */
     val sideEffects : Set<(State,ConcreteAction)->Unit> = emptySet(),
 ) {}
