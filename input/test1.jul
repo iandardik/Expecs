@@ -1,0 +1,16 @@
+p-class S {
+    var x : Int = 0
+    var y : Int = 5 + 5
+    var z : String = "state0"
+    
+    action I(inc : Int) {
+        guard:
+            x = 0 & (y = 0 | y = 1) & (z = "state0")
+        update:
+            x := x + 1
+            y := x + y
+            z := "state1"
+    }
+}
+
+p-class T {}

@@ -1,8 +1,16 @@
 package exspecs.cli
 
 import com.microsoft.z3.*
+import exspecs.ast.ASTBuilder
+import exspecs.ast.buildAST
+import exspecs.parser.ExspecLexer
+import exspecs.parser.ExspecParser
+import exspecs.parser.ExspecParserBaseVisitor
+import exspecs.parser.ExspecParserListener
 import exspecs.program.*
 import exspecs.tools.mkStringConst
+import org.antlr.v4.runtime.CharStreams
+import org.antlr.v4.runtime.CommonTokenStream
 
 fun makeTS1() : TransitionSystem {
     val ctx = Context()
@@ -71,9 +79,16 @@ fun makeTS2() : TransitionSystem {
 }
 
 fun main(args : Array<String>) {
+    /*
     println("Program 1:")
     Program(setOf(makeTS1(), makeTS2())).testRun()
     println()
     println("Program 2:")
     Program(setOf(makeTS1())).run()
+     */
+
+    //val input = CharStreams.fromString("p-class S {}")
+    val input = CharStreams.fromFileName("/Users/idardik/Documents/CMU/exspecs/java/Exspecs/input/test1.jul")
+    val ast = buildAST(input)
+    println(ast)
 }
