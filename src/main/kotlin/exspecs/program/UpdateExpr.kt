@@ -13,6 +13,14 @@ class EqUpdateExpr<T>(
     }
 }
 
+class NotUpdateExpr(
+    private val operand : UpdateExpr<Boolean>,
+) : UpdateExpr<Boolean> {
+    override fun eval(state : State, act : ConcreteAction) : Boolean {
+        return !operand.eval(state, act)
+    }
+}
+
 class IntUpdateExpr(
     private val intValue : Int
 ) : UpdateExpr<Int> {
@@ -48,6 +56,18 @@ class PlusIntUpdateExpr(
     }
     override fun toString(): String {
         return "($lhs + $rhs)"
+    }
+}
+
+class MinusIntUpdateExpr(
+    private val lhs : UpdateExpr<Int>,
+    private val rhs : UpdateExpr<Int>,
+) : UpdateExpr<Int> {
+    override fun eval(state : State, act : ConcreteAction) : Int {
+        return lhs.eval(state, act) - rhs.eval(state, act)
+    }
+    override fun toString(): String {
+        return "($lhs - $rhs)"
     }
 }
 

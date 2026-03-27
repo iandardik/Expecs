@@ -2,6 +2,7 @@ package exspecs.cli
 
 import com.microsoft.z3.*
 import exspecs.ast.ASTBuilder
+import exspecs.ast.ProgramNode
 import exspecs.ast.buildAST
 import exspecs.parser.ExspecLexer
 import exspecs.parser.ExspecParser
@@ -90,5 +91,9 @@ fun main(args : Array<String>) {
     //val input = CharStreams.fromString("p-class S {}")
     val input = CharStreams.fromFileName("/Users/idardik/Documents/CMU/exspecs/java/Exspecs/input/test1.jul")
     val ast = buildAST(input)
-    println(ast)
+    //println(ast)
+    val programAST = ast as ProgramNode
+    val typedAST = programAST.toTypedAST()
+    val prog = typedAST.toProgram()
+    prog.run()
 }

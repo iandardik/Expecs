@@ -49,8 +49,9 @@ class ASTBuilder : ExspecParserBaseVisitor<ASTNode>() {
     override fun visitAction_decl(ctx: ExspecParser.Action_declContext?): ASTNode {
         val name = ctx!!.ID().text
         val args = visit(ctx.action_args())
-        val body = (ctx.guard() + ctx.update()).map { visit(it) }
-        return ActionDeclNode(name, args, body)
+        val guards = ctx.guard().map { visit(it) }
+        val updates = ctx.update().map { visit(it) }
+        return ActionDeclNode(name, args, guards, updates)
     }
 
     override fun visitAction_args(ctx: ExspecParser.Action_argsContext?): ASTNode {
@@ -82,7 +83,7 @@ class ASTBuilder : ExspecParserBaseVisitor<ASTNode>() {
 
     override fun visitExpr(ctx: ExspecParser.ExprContext?): ASTNode {
        return if (ctx!!.EQ() != null) {
-            BinaryOpExprNode("=", visit(ctx.expr(0)), visit(ctx.expr(1)))
+           BinaryOpExprNode("=", visit(ctx.expr(0)), visit(ctx.expr(1)))
        } else if (ctx.LT() != null) {
            BinaryOpExprNode("<", visit(ctx.expr(0)), visit(ctx.expr(1)))
        } else if (ctx.LTE() != null) {
@@ -112,16 +113,15 @@ class ASTBuilder : ExspecParserBaseVisitor<ASTNode>() {
 
     override fun visitValue(ctx: ExspecParser.ValueContext?): ASTNode {
         return if (ctx!!.ID() != null) {
-            IDValueNode(ctx.ID().text)
+            ValueExprNode(ctx.ID().text, "Symbol")
         } else if (ctx.INT() != null) {
-            val value = Integer.parseInt(ctx.INT().text)
-            IntValueNode(value)
+            ValueExprNode(ctx.INT().text, "Int")
         } else if (ctx.TRUE() != null) {
-            BoolValueNode(true)
+            ValueExprNode(ctx.TRUE().text, "Bool")
         } else if (ctx.FALSE() != null) {
-            BoolValueNode(false)
+            ValueExprNode(ctx.FALSE().text, "Bool")
         } else if (ctx.STRING() != null) {
-            StringValueNode(ctx.STRING().text)
+            ValueExprNode(ctx.STRING().text, "String")
         } else {
             throw RuntimeException("Invalid visitValue: invalid expression found: ${ctx.text}")
         }

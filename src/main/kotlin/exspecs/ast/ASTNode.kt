@@ -8,6 +8,10 @@ interface ASTNode {}
 class ProgramNode(
     private val procNodes : List<ASTNode>
 ) : ASTNode {
+    fun toTypedAST() : TypedProgramNode {
+        val typedProcs = procNodes.map { (it as ProcClassNode).toTypedAST() }
+        return TypedProgramNode(typedProcs)
+    }
     override fun toString(): String {
         return procNodes.joinToString("\n\n") { it.toString() }
     }
@@ -17,7 +21,14 @@ class ProcClassNode(
     private val name : String,
     private val localDecls : List<ASTNode>
 ) : ASTNode {
-    fun getName() = name
+    fun toTypedAST() : TypedProcClassNode {
+        val varDecls = localDecls.filterIsInstance<VarDeclNode>()
+        val actionDecls = localDecls.filterIsInstance<ActionDeclNode>()
+        localDecls
+            .filter { it !in varDecls && it !in actionDecls }
+            .forEach { throw RuntimeException("Unexpected p-class declaration: $it") }
+        return TypedProcClassNode(name, varDecls.map { it.toTypedAST() }, actionDecls.map { it.toTypedAST() })
+    }
     override fun toString(): String {
         return "p-class $name {${localDecls.joinToString("") { "\n  $it" }}\n}"
     }
@@ -28,6 +39,12 @@ class VarDeclNode(
     private val type : String,
     private val value : ASTNode
 ) : ASTNode {
+    fun toTypedAST() : TypedVarDeclNode {
+        if (value !is ExprNode) {
+            throw RuntimeException("Expected value of a var decl to be an expression")
+        }
+        return TypedVarDeclNode(name, type, value.toTypedAST())
+    }
     override fun toString(): String {
         return "var $name : $type = $value"
     }
@@ -36,9 +53,30 @@ class VarDeclNode(
 class ActionDeclNode(
     private val name : String,
     private val args : ASTNode,
-    private val body : List<ASTNode>
+    private val guards : List<ASTNode>,
+    private val updates : List<ASTNode>
 ) : ASTNode {
+    fun toTypedAST() : TypedActionDeclNode {
+        if (args !is ActionArgsNode) {
+            throw RuntimeException("Expected action $name to have an argument list")
+        }
+        val typedArgs = args.toTypedAST()
+        val typedGuards = guards.map { guard ->
+            if (guard !is GuardNode) {
+                throw RuntimeException("Expected guards in guard decl")
+            }
+            guard.toTypedAST()
+        }
+        val typedUpdates = updates.map { update ->
+            if (update !is UpdateNode) {
+                throw RuntimeException("Expected updates in update decl")
+            }
+            update.toTypedAST()
+        }
+        return TypedActionDeclNode(name, typedArgs, typedGuards, typedUpdates)
+    }
     override fun toString(): String {
+        val body = guards + updates
         return "action $name($args) {${body.joinToString("") { "\n    $it" }}\n  }"
     }
 }
@@ -46,6 +84,15 @@ class ActionDeclNode(
 class ActionArgsNode(
     private val args : List<ASTNode>
 ) : ASTNode {
+    fun toTypedAST() : TypedActionArgsNode {
+        val typedArgs = args.map { arg ->
+            if (arg !is ActionArgNode) {
+                throw RuntimeException("Expected ActionArgNode")
+            }
+            arg.toTypedAST()
+        }
+        return TypedActionArgsNode(typedArgs)
+    }
     override fun toString(): String {
         return args.joinToString(", ") { it.toString() }
     }
@@ -55,6 +102,9 @@ class ActionArgNode(
     private val name : String,
     private val type : String
 ) : ASTNode {
+    fun toTypedAST() : TypedActionArgNode {
+        return TypedActionArgNode(name, type)
+    }
     override fun toString(): String {
         return "$name : $type"
     }
@@ -63,6 +113,13 @@ class ActionArgNode(
 class GuardNode(
     private val guardExpr : ASTNode
 ) : ASTNode {
+    fun toTypedAST() : TypedGuardNode {
+        if (guardExpr !is ExprNode) {
+            throw RuntimeException("Expected TypedExprNode")
+        }
+        val typedGuardExpr = guardExpr.toTypedAST()
+        return TypedGuardNode(typedGuardExpr)
+    }
     override fun toString(): String {
         return "guard:\n      $guardExpr"
     }
@@ -71,6 +128,15 @@ class GuardNode(
 class UpdateNode(
     private val updates : List<ASTNode>
 ) : ASTNode {
+    fun toTypedAST() : TypedUpdateNode {
+        val typedUpdates = updates.map { update ->
+            if (update !is VarUpdateNode) {
+                throw RuntimeException("Expected UpdateNode")
+            }
+            update.toTypedAST()
+        }
+        return TypedUpdateNode(typedUpdates)
+    }
     override fun toString(): String {
         return "update:${updates.joinToString("") { "\n      $it" }}"
     }
@@ -80,15 +146,31 @@ class VarUpdateNode(
     private val varName : String,
     private val update : ASTNode
 ) : ASTNode {
+    fun toTypedAST() : TypedVarUpdateNode {
+        if (update !is ExprNode) {
+            throw RuntimeException("Expected ExprNode")
+        }
+        return TypedVarUpdateNode(varName, update.toTypedAST())
+    }
     override fun toString(): String {
         return "$varName := $update"
     }
 }
 
+interface ExprNode : ASTNode {
+    fun toTypedAST() : TypedExprNode
+}
+
 class UnaryOpExprNode(
     private val op : String,
     private val operand : ASTNode
-) : ASTNode {
+) : ExprNode {
+    override fun toTypedAST(): TypedExprNode {
+        if (operand !is ExprNode) {
+            throw RuntimeException("Expected ExprNode")
+        }
+        return TypedUnaryOpExprNode(op, operand.toTypedAST())
+    }
     override fun toString(): String {
         return "$op $operand"
     }
@@ -98,7 +180,13 @@ class BinaryOpExprNode(
     private val op : String,
     private val lhsOperand : ASTNode,
     private val rhsOperand : ASTNode
-) : ASTNode {
+) : ExprNode {
+    override fun toTypedAST(): TypedExprNode {
+        if (lhsOperand !is ExprNode || rhsOperand !is ExprNode) {
+            throw RuntimeException("Expected ExprNode")
+        }
+        return TypedBinaryOpExprNode(op, lhsOperand.toTypedAST(), rhsOperand.toTypedAST())
+    }
     override fun toString(): String {
         // for readability
         val lhs = if (lhsOperand is BinaryOpExprNode && lhsOperand.op != "=") "($lhsOperand)" else "$lhsOperand"
@@ -107,34 +195,14 @@ class BinaryOpExprNode(
     }
 }
 
-class IDValueNode(
-    private val name : String
-) : ASTNode {
-    override fun toString(): String {
-        return name
+class ValueExprNode(
+    private val value : String,
+    private val type : String
+) : ExprNode {
+    override fun toTypedAST(): TypedExprNode {
+        return TypedValueExprNode(value, type)
     }
-}
-
-class IntValueNode(
-    private val value : Int
-) : ASTNode {
     override fun toString(): String {
-        return "$value"
-    }
-}
-
-class BoolValueNode(
-    private val value : Boolean
-) : ASTNode {
-    override fun toString(): String {
-        return "$value"
-    }
-}
-
-class StringValueNode(
-    private val value : String
-) : ASTNode {
-    override fun toString(): String {
-        return "$value"
+        return value
     }
 }
