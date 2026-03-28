@@ -1,17 +1,11 @@
 package exspecs.cli
 
 import com.microsoft.z3.*
-import exspecs.ast.ASTBuilder
 import exspecs.ast.ProgramNode
 import exspecs.ast.buildAST
-import exspecs.parser.ExspecLexer
-import exspecs.parser.ExspecParser
-import exspecs.parser.ExspecParserBaseVisitor
-import exspecs.parser.ExspecParserListener
 import exspecs.program.*
 import exspecs.tools.mkStringConst
 import org.antlr.v4.runtime.CharStreams
-import org.antlr.v4.runtime.CommonTokenStream
 
 fun makeTS1() : TransitionSystem {
     val ctx = Context()

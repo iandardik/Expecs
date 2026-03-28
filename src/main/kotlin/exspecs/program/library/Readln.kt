@@ -3,6 +3,7 @@ package exspecs.program.library
 import com.microsoft.z3.Context
 import exspecs.program.*
 import exspecs.tools.mkStringConst
+import java.util.*
 
 fun makeReadln() : TransitionSystem {
     val ctx = Context()
@@ -17,14 +18,16 @@ fun makeReadln() : TransitionSystem {
                 ctx.mkEq(ctx.mkStringConst("read"), ctx.mkString("true")),
             ),
             setOf(), //setOf(StringStateVarUpdate(Variable("read","String"), StringUpdateExpr("false"))),
-            setOf({ state,act ->
+            Optional.of { state, act ->
                 println("Enter an Int:")
                 val input = readln()
-                State(setOf(
-                    IntVarAssignment(Variable("input","Int"),Integer.parseInt(input)),
-                    StringVarAssignment(Variable("read","String"),"false"),
-                ))
-            })
+                State(
+                    setOf(
+                        IntVarAssignment(Variable("input", "Int"), Integer.parseInt(input)),
+                        StringVarAssignment(Variable("read", "String"), "false"),
+                    )
+                )
+            }
         ),
         SymbolicAction(
             ActionSignature("Readln", listOf(Variable("msg","Int"))), // TODO make the type a String

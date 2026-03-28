@@ -1,6 +1,7 @@
 package exspecs.program
 
 import com.microsoft.z3.BoolExpr
+import java.util.*
 
 /**
  * Represents a symbolic action for a given transition system / proc.
@@ -15,5 +16,5 @@ data class SymbolicAction(
     /**
      * All side effects take place before executing the ConcreteAction.
      */
-    val sideEffects : Set<(State,ConcreteAction)->State> = emptySet(),
+    val sideEffect : Optional<(State,ConcreteAction)->State> = Optional.empty(),
 ) {}

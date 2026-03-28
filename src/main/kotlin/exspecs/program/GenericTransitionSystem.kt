@@ -26,7 +26,7 @@ class GenericTransitionSystem(
      */
     override fun transit(concAct : ConcreteAction) {
         val symAct = correspondingSymbolicAction(concAct)
-        symAct.sideEffects.forEach { state = it.invoke(state,concAct) }
+        symAct.sideEffect.ifPresent { state = it.invoke(state,concAct) }
         val explicitlyUpdatedAssignments = symAct.varUpdates
             .map { update -> update.updateAssignment(state,concAct) }
             .toSet()

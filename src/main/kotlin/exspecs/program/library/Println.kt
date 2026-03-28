@@ -2,6 +2,7 @@ package exspecs.program.library
 
 import com.microsoft.z3.Context
 import exspecs.program.*
+import java.util.*
 
 fun makePrintln() : TransitionSystem {
     val ctx = Context()
@@ -11,7 +12,7 @@ fun makePrintln() : TransitionSystem {
             ActionSignature("Println", listOf(Variable("msg","Int"))), // TODO make the type a String
             ctx.mkTrue(),
             setOf(),
-            setOf({ state,act -> println(act.lookup(Variable("msg","Int"))); state })
+            Optional.of { state, act -> println(act.lookup(Variable("msg", "Int"))); state }
         ),
     )
     // set selfTerminate to false because this is a library function
