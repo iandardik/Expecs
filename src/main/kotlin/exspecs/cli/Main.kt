@@ -89,7 +89,8 @@ fun main(args : Array<String>) {
      */
 
     //val input = CharStreams.fromString("p-class S {}")
-    val input = CharStreams.fromFileName("/Users/idardik/Documents/CMU/exspecs/java/Exspecs/input/test1.jul")
+    //val input = CharStreams.fromFileName("/Users/idardik/Documents/CMU/exspecs/java/Exspecs/input/test1.jul")
+    val input = CharStreams.fromFileName("/Users/idardik/Documents/CMU/exspecs/java/Exspecs/input/test_readln_sync_done.jul")
     val ast = buildAST(input)
     //println(ast)
     val programAST = ast as ProgramNode

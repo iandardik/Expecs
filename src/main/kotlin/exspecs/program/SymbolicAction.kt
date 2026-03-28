@@ -15,5 +15,5 @@ data class SymbolicAction(
     /**
      * All side effects take place before executing the ConcreteAction.
      */
-    val sideEffects : Set<(State,ConcreteAction)->Unit> = emptySet(),
+    val sideEffects : Set<(State,ConcreteAction)->State> = emptySet(),
 ) {}

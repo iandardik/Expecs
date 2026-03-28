@@ -148,7 +148,14 @@ class TypedVarUpdateNode(
         return when (val type = update.getType()) {
             "Int" -> IntStateVarUpdate(Variable(varName,type), update.toUpdateExpr(symbolTypeTable))
             "String" -> StringStateVarUpdate(Variable(varName,type), update.toUpdateExpr(symbolTypeTable))
-            else -> throw RuntimeException("Unexpected type: $type")
+            "Symbol" -> {
+                return when (symbolTypeTable[varName]) {
+                    "Int" -> IntStateVarUpdate(Variable(varName,symbolTypeTable[varName]!!), update.toUpdateExpr(symbolTypeTable))
+                    "String" -> StringStateVarUpdate(Variable(varName,symbolTypeTable[varName]!!), update.toUpdateExpr(symbolTypeTable))
+                    else -> throw RuntimeException("Unexpected type '${symbolTypeTable[varName]}' for update: $varName := $update")
+                }
+            }
+            else -> throw RuntimeException("Unexpected type '$type' for update: $varName := $update")
         }
     }
     override fun toString(): String {

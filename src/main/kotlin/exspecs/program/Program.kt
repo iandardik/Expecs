@@ -5,11 +5,12 @@ import com.microsoft.z3.Context
 import com.microsoft.z3.Status
 import exspecs.concurrency.SyncChannel
 import exspecs.program.library.makePrintln
+import exspecs.program.library.makeReadln
 import java.util.*
 import kotlin.system.exitProcess
 
 // TODO this can be done much better
-val library = setOf(makePrintln())
+val library = setOf(makePrintln(), makeReadln())
 
 /**
  * A program represents one or more processes that interact together on a single computer.
