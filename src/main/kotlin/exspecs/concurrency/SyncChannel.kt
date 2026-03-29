@@ -165,8 +165,6 @@ class SyncChannel<V : Any, C : Any>(
                 }
             }
 
-            // TODO if the syncValue is UNSAT then we should retry
-
             // attempt to commit to the value
             val commit = selectsCommit()
             if (commit) {
