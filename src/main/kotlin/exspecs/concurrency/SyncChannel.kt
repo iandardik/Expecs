@@ -26,22 +26,22 @@ class SyncChannel<V : Any, C : Any>(
     private var selects : Set<Select> = emptySet()
     private var closed = false
 
-    fun sync(select : Optional<Select> = Optional.empty()) : SyncChannelResult<V> {
-        return sync(Optional.empty(), select)
+    fun sync(select : Optional<Select> = Optional.empty(), retryOnUNSAT : Boolean = true) : SyncChannelResult<V> {
+        return sync(Optional.empty(), select, retryOnUNSAT)
     }
 
-    fun sync(constraint : C, select : Optional<Select> = Optional.empty()) : SyncChannelResult<V> {
-        return sync(Optional.of(constraint), select)
+    fun sync(constraint : C, select : Optional<Select> = Optional.empty(), retryOnUNSAT : Boolean = true) : SyncChannelResult<V> {
+        return sync(Optional.of(constraint), select, retryOnUNSAT)
     }
 
-    fun sync(constraint : Optional<C>, select : Optional<Select> = Optional.empty()) : SyncChannelResult<V> {
+    /**
+     * This method will not check each constraint to see if it is satisfiable--that is up to the caller.
+     */
+    fun sync(constraint : Optional<C>, select : Optional<Select> = Optional.empty(), retryOnUNSAT : Boolean = true) : SyncChannelResult<V> {
         var attemptingSync = true
         var syncResult = SyncChannelResult.none<V>()
         while (attemptingSync) {
-            val enter = enterThroughLobby(
-                constraint,
-                select
-            ) // not the fairest policy to have each thread reenter the lobby on each retry
+            val enter = enterThroughLobby(constraint, select, retryOnUNSAT) // not the fairest policy to have each thread reenter the lobby on each retry
             // TODO this stub below is a bit dangerous, since it doesn't exitThroughLobby() (not always clear when it should)
             if (!enter) {
                 // this means that the thread was interrupted, which implies an abort
@@ -50,7 +50,12 @@ class SyncChannel<V : Any, C : Any>(
 
             // once we've made it here, attempt to sync
             val result = syncAttempt(select.isPresent)
-            if (!result.isRetry) {
+
+            // retry syncing under the following two conditions:
+            // 1. the result is a retry
+            // 2. the result is UNSAT and we're in retryOnUNSAT mode
+            val retry = result.isRetry || (result.isUNSAT && retryOnUNSAT)
+            if (!retry) {
                 attemptingSync = false
                 syncResult = result
             }
@@ -58,12 +63,25 @@ class SyncChannel<V : Any, C : Any>(
         return syncResult
     }
 
-    private fun enterThroughLobby(constraint : Optional<C>, select : Optional<Select>) : Boolean {
+    /**
+     * Returns whether the given constraint is mutually satisfiable with the current constraints in the lobby. Note that
+     * we do not perform a check (and simply return true) if the current set of constraints is empty; this is safe based
+     * on the assumption that each individual constraint is satisfiable, which we rely on for efficiency (to reduce the
+     * number of calls to the SMT solver).
+     */
+    private fun satisfiableWithCurrentLobby(constraint : Optional<C>) : Boolean {
+        if (constraint.isEmpty || constraints.isEmpty()) {
+            return true
+        }
+        return compute.invoke(constraints.plus(constraint.get())).isPresent
+    }
+
+    private fun enterThroughLobby(constraint : Optional<C>, select : Optional<Select>, retryOnUNSAT : Boolean) : Boolean {
         // wait to enter the channel
         lobbyLock.lock()
         try {
             // waiting in the "lobby" to get in
-            while (size == syncSize) {
+            while (size == syncSize || (retryOnUNSAT && !satisfiableWithCurrentLobby(constraint))) {
                 lobbyCond.await()
                 if (checkIsClosed()) {
                     return false
@@ -228,7 +246,7 @@ class SyncChannel<V : Any, C : Any>(
     }
 }
 
-class SyncChannelResult<V : Any>(
+data class SyncChannelResult<V : Any>(
     val isSAT : Boolean,
     val isUNSAT : Boolean,
     val isAborted : Boolean,
