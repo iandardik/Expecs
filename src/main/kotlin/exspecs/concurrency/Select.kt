@@ -9,6 +9,7 @@ class Select(private vararg val cases : Case) : Runnable {
     private val condition = lock.newCondition()
     private val publicLock = StratifiedLock()
     private var winner = Optional.empty<Int>()
+    private var completeCases = emptySet<Case>()
 
     init {
         // check to make sure no two cases use the same channel
@@ -57,7 +58,7 @@ class Select(private vararg val cases : Case) : Runnable {
         finally {
             lock.unlock()
         }
-        exspecs.tools.assert(winner.isPresent)
+        // a winner may not be present if all channels have been closed
         threads.forEach {
             it.interrupt()
         }
@@ -93,13 +94,19 @@ class Select(private vararg val cases : Case) : Runnable {
                 if (ret.isPresent) {
                     exspecs.tools.assert(select.winner.get() == chan.hashCode())
                     exspecs.tools.assert(done)
-                    callback.invoke(ret.get())
-                    try {
-                        select.lock.lock()
+                    callback.invoke(ret.result.get())
+                }
+                try {
+                    select.lock.lock()
+                    select.completeCases = select.completeCases.plus(this)
+                    // there are two cases in which we want the main thread to continue:
+                    // 1. This thread is the winner (ret.isPresent), in which case we are done
+                    // 2. all Cases have completed, in which case we are also done
+                    if (ret.isPresent || select.completeCases == select.cases.toSet()) {
                         select.condition.signalAll()
-                    } finally {
-                        select.lock.unlock()
                     }
+                } finally {
+                    select.lock.unlock()
                 }
             }
         }

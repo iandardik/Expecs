@@ -15,39 +15,44 @@ class SyncChannel<V : Any, C : Any>(
     private val lobbyCond = lobbyLock.newCondition()
     private val comLock = ReentrantLock()
     private val comCond = comLock.newCondition()
+    private val closedLock = ReentrantLock()
 
     private var size = 0
     private var constraints = emptySet<C>()
-    private var syncValue = Optional.empty<V>()
+    private var syncValue = SyncChannelResult.none<V>()
     private var commitVotes = 0
     private var aborted = false
     private var numExited = 0
     private var selects : Set<Select> = emptySet()
+    private var closed = false
 
-    fun sync(select : Optional<Select> = Optional.empty()) : Optional<V> {
+    fun sync(select : Optional<Select> = Optional.empty()) : SyncChannelResult<V> {
         return sync(Optional.empty(), select)
     }
 
-    fun sync(constraint : C, select : Optional<Select> = Optional.empty()) : Optional<V> {
+    fun sync(constraint : C, select : Optional<Select> = Optional.empty()) : SyncChannelResult<V> {
         return sync(Optional.of(constraint), select)
     }
 
-    fun sync(constraint : Optional<C>, select : Optional<Select> = Optional.empty()) : Optional<V> {
+    fun sync(constraint : Optional<C>, select : Optional<Select> = Optional.empty()) : SyncChannelResult<V> {
         var attemptingSync = true
-        var syncResult = Optional.empty<V>()
+        var syncResult = SyncChannelResult.none<V>()
         while (attemptingSync) {
-            val enter = enterThroughLobby(constraint, select) // not the fairest policy to have each thread reenter the lobby on each retry
+            val enter = enterThroughLobby(
+                constraint,
+                select
+            ) // not the fairest policy to have each thread reenter the lobby on each retry
             // TODO this stub below is a bit dangerous, since it doesn't exitThroughLobby() (not always clear when it should)
             if (!enter) {
                 // this means that the thread was interrupted, which implies an abort
-                return Optional.empty()
+                return SyncChannelResult.abort()
             }
 
             // once we've made it here, attempt to sync
-            val (result, value) = syncAttempt(select.isPresent)
-            if (result == "abort" || result == "commit") {
+            val result = syncAttempt(select.isPresent)
+            if (!result.isRetry) {
                 attemptingSync = false
-                syncResult = value
+                syncResult = result
             }
         }
         return syncResult
@@ -61,6 +66,9 @@ class SyncChannel<V : Any, C : Any>(
             // waiting in the "lobby" to get in
             while (size == syncSize) {
                 lobbyCond.await()
+                if (checkIsClosed()) {
+                    return false
+                }
             }
 
             // the thread has gotten "in", now wait until enough threads have also gotten in
@@ -76,6 +84,9 @@ class SyncChannel<V : Any, C : Any>(
                 lobbyCond.signalAll()
             } else {
                 lobbyCond.await()
+                if (checkIsClosed()) {
+                    return false
+                }
             }
             return true
         }
@@ -83,7 +94,9 @@ class SyncChannel<V : Any, C : Any>(
             return false
         }
         finally {
-            lobbyLock.unlock()
+            if (lobbyLock.isLocked) {
+                lobbyLock.unlock()
+            }
         }
     }
 
@@ -119,14 +132,19 @@ class SyncChannel<V : Any, C : Any>(
         }
     }
 
-    private fun syncAttempt(hasSelect : Boolean) : Pair<String,Optional<V>> {
+    private fun syncAttempt(hasSelect : Boolean) : SyncChannelResult<V> {
         // the channel has been entered
         try {
             comLock.lock()
 
             // the first thread to enter this critical section will compute SAT on all formulas
             if (syncValue.isEmpty) {
-                syncValue = compute.invoke(constraints)
+                val computeResult = compute.invoke(constraints)
+                syncValue = if (computeResult.isPresent) {
+                    SyncChannelResult.sat(computeResult.get())
+                } else {
+                    SyncChannelResult.unsat()
+                }
             }
 
             // TODO if the syncValue is UNSAT then we should retry
@@ -142,21 +160,24 @@ class SyncChannel<V : Any, C : Any>(
                 // at this point, this thread is attempting to commit but doesn't have the votes yet to commit.
                 // wait for the other threads to decide if they want to commit or abort.
                 comCond.await()
+                if (checkIsClosed()) {
+                    return SyncChannelResult.abort()
+                }
             }
             comCond.signalAll()
 
             return if (commit && !aborted) {
-                Pair("commit", syncValue)
+                syncValue
             } else if (commit && hasSelect) {
                 // never retry if there's a select--the select itself will retry
-                Pair("retry", Optional.empty())
+                SyncChannelResult.retry()
             } else {
-                Pair("abort", Optional.empty<V>())
+                SyncChannelResult.abort()
             }
         }
         catch (e : InterruptedException) {
             comCond.signalAll()
-            return Pair("abort", Optional.empty<V>())
+            return SyncChannelResult.abort()
         }
         finally {
             ++numExited
@@ -164,12 +185,77 @@ class SyncChannel<V : Any, C : Any>(
                 // the last one out cleans up
                 commitVotes = 0
                 aborted = false
-                syncValue = Optional.empty()
+                syncValue = SyncChannelResult.none()
                 numExited = 0
                 exitThroughLobby()
             }
             comLock.unlock()
         }
     }
+
+    fun close() {
+        try {
+            closedLock.lock()
+            closed = true
+        } finally {
+            closedLock.unlock()
+        }
+        try {
+            lobbyLock.lock()
+            lobbyCond.signalAll()
+        } finally {
+            lobbyLock.unlock()
+        }
+        try {
+            comLock.lock()
+            comCond.signalAll()
+        } finally {
+            comLock.unlock()
+        }
+    }
+
+    private fun checkIsClosed() : Boolean {
+        try {
+            closedLock.lock()
+            if (closed) {
+                return true
+            }
+        }
+        finally {
+            closedLock.unlock()
+        }
+        return false
+    }
 }
 
+class SyncChannelResult<V : Any>(
+    val isSAT : Boolean,
+    val isUNSAT : Boolean,
+    val isAborted : Boolean,
+    val isRetry : Boolean,
+    val result : Optional<V>
+) {
+    val isEmpty = result.isEmpty
+    val isPresent = result.isPresent
+    init {
+        exspecs.tools.assert(!isPresent || (isSAT && !isUNSAT && !isAborted && !isRetry),
+            "Invalid channel result, expected: isPresent => (isSAT && !isUNSAT && !isAborted && !isRetry)")
+    }
+    companion object {
+        fun <V : Any> sat(value : V) : SyncChannelResult<V> {
+            return SyncChannelResult(true, false, false, false, Optional.of(value))
+        }
+        fun <V : Any> unsat() : SyncChannelResult<V> {
+            return SyncChannelResult(false, true, false, false, Optional.empty())
+        }
+        fun <V : Any> abort() : SyncChannelResult<V> {
+            return SyncChannelResult(false, false, true, false, Optional.empty())
+        }
+        fun <V : Any> retry() : SyncChannelResult<V> {
+            return SyncChannelResult(false, false, false, true, Optional.empty())
+        }
+        fun <V : Any> none() : SyncChannelResult<V> {
+            return SyncChannelResult(false, false, false, false, Optional.empty())
+        }
+    }
+}

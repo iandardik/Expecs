@@ -41,7 +41,7 @@ class SyncChannelTest {
             val t = Thread {
                 val syncResult = chan.sync()
                 // keep track of how many threads have sync'ed on this value
-                results.compute(syncResult.get(), chmResultUpdate)
+                results.compute(syncResult.result.get(), chmResultUpdate)
             }
             t.start()
             threads.add(t)
@@ -89,11 +89,11 @@ class SyncChannelTest {
         for (i in 1.. numThreads) {
             val t1 = Thread {
                 val syncResult = chan1.sync()
-                results.compute(syncResult.get(), chmResultUpdate)
+                results.compute(syncResult.result.get(), chmResultUpdate)
             }
             val t2 = Thread {
                 val syncResult = chan2.sync()
-                results.compute(syncResult.get(), chmResultUpdate)
+                results.compute(syncResult.result.get(), chmResultUpdate)
             }
             t1.start()
             t2.start()

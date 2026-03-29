@@ -7,7 +7,6 @@ import exspecs.concurrency.SyncChannel
 import exspecs.program.library.makePrintln
 import exspecs.program.library.makeReadln
 import java.util.*
-import kotlin.system.exitProcess
 
 // TODO this can be done much better
 val library = setOf(makePrintln(), makeReadln())
@@ -17,6 +16,7 @@ val library = setOf(makePrintln(), makeReadln())
  */
 class Program : Runnable {
     private val procs : Set<Proc>
+    private val channels : Set<SyncChannel<ConcreteAction,BoolExpr>>
 
     /**
      * The constructor sets up a channel for each SymbolicAction so that each process that engages in the action can
@@ -53,6 +53,7 @@ class Program : Runnable {
             }
         }
         procs = allComponents.map { Proc(it,channelTable) }.toSet()
+        channels = channelTable.values.toSet()
     }
 
     override fun run() {
@@ -60,16 +61,6 @@ class Program : Runnable {
         threads.forEach { (_,thread) -> thread.start() }
         val selfTerminatingThreads = threads.filter { (proc,_) -> proc.selfTerminate() }
         selfTerminatingThreads.forEach { (_,thread) -> thread.join() }
-        exitProcess(0) // TODO create a SyncChannel.close() function so we can get rid of this
-    }
-
-    /**
-     * Does not call exitProcess(); this is useful for testing.
-     */
-    fun testRun() {
-        val threads = procs.map { Pair(it,Thread(it)) }
-        threads.forEach { (_,thread) -> thread.start() }
-        val selfTerminatingThreads = threads.filter { (proc,_) -> proc.selfTerminate() }
-        selfTerminatingThreads.forEach { (_,thread) -> thread.join() }
+        channels.forEach { it.close() }
     }
 }
