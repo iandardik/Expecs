@@ -60,9 +60,8 @@ class SyncChannel<V : Any, C : Any>(
 
     private fun enterThroughLobby(constraint : Optional<C>, select : Optional<Select>) : Boolean {
         // wait to enter the channel
+        lobbyLock.lock()
         try {
-            lobbyLock.lock()
-
             // waiting in the "lobby" to get in
             while (size == syncSize) {
                 lobbyCond.await()
@@ -99,8 +98,8 @@ class SyncChannel<V : Any, C : Any>(
     }
 
     private fun exitThroughLobby() {
+        lobbyLock.lock()
         try {
-            lobbyLock.lock()
             size = 0
             constraints = emptySet()
             selects = emptySet()
@@ -126,15 +125,18 @@ class SyncChannel<V : Any, C : Any>(
             return allCanCommit
         }
         finally {
-            allLocks.forEach { it.unlock() }
+            allLocks.forEach {
+                if (it.isLocked()) {
+                    it.unlock()
+                }
+            }
         }
     }
 
     private fun syncAttempt(hasSelect : Boolean) : SyncChannelResult<V> {
         // the channel has been entered
+        comLock.lock()
         try {
-            comLock.lock()
-
             // the first thread to enter this critical section will compute SAT on all formulas
             if (syncValue.isEmpty) {
                 val computeResult = compute.invoke(constraints)
@@ -192,20 +194,20 @@ class SyncChannel<V : Any, C : Any>(
     }
 
     fun close() {
+        closedLock.lock()
         try {
-            closedLock.lock()
             closed = true
         } finally {
             closedLock.unlock()
         }
+        lobbyLock.lock()
         try {
-            lobbyLock.lock()
             lobbyCond.signalAll()
         } finally {
             lobbyLock.unlock()
         }
+        comLock.lock()
         try {
-            comLock.lock()
             comCond.signalAll()
         } finally {
             comLock.unlock()
@@ -213,8 +215,8 @@ class SyncChannel<V : Any, C : Any>(
     }
 
     private fun checkIsClosed() : Boolean {
+        closedLock.lock()
         try {
-            closedLock.lock()
             if (closed) {
                 return true
             }

@@ -9,6 +9,8 @@ class StratifiedLock : Lock, Comparable<StratifiedLock> {
     private val id = nextId()
     private val lock = ReentrantLock()
 
+    fun isLocked() : Boolean = lock.isLocked
+
     fun getId() : Int = id
 
     override fun lock() {

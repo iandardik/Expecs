@@ -48,10 +48,10 @@ class Select(private vararg val cases : Case) : Runnable {
         }
 
         val threads = cases.map { Thread(it) }
+        lock.lock()
         try {
             // spawn a thread for each case and listen on the channel. each thread attempts to "win" the select statement
             // by communicating with its channel first.
-            lock.lock()
             threads.forEach { it.start() }
             condition.await()
         }
@@ -96,8 +96,8 @@ class Select(private vararg val cases : Case) : Runnable {
                     exspecs.tools.assert(done)
                     callback.invoke(ret.result.get())
                 }
+                select.lock.lock()
                 try {
-                    select.lock.lock()
                     select.completeCases = select.completeCases.plus(this)
                     // there are two cases in which we want the main thread to continue:
                     // 1. This thread is the winner (ret.isPresent), in which case we are done
