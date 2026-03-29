@@ -94,9 +94,7 @@ class SyncChannel<V : Any, C : Any>(
             return false
         }
         finally {
-            if (lobbyLock.isLocked) {
-                lobbyLock.unlock()
-            }
+            lobbyLock.unlock()
         }
     }
 
