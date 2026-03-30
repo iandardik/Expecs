@@ -38,13 +38,15 @@ class SyncChannel<V : Any, C : Any>(
      * This method will not check each constraint to see if it is satisfiable--that is up to the caller.
      */
     fun sync(constraint : Optional<C>, select : Optional<Select> = Optional.empty(), retryOnUNSAT : Boolean = true) : SyncChannelResult<V> {
+        // TODO catch all exceptions in this method (instead of enterThroughLobby() and syncAttempt()) because an
+        // TODO interruption can happen here too. Either way, we need to add more book keeping to our data structures
+        // TODO so the exiting/interrupted thread can always exit safely.
         var attemptingSync = true
         var syncResult = SyncChannelResult.none<V>()
         while (attemptingSync) {
-            val enter = enterThroughLobby(constraint, select, retryOnUNSAT) // not the fairest policy to have each thread reenter the lobby on each retry
-            // TODO this stub below is a bit dangerous, since it doesn't exitThroughLobby() (not always clear when it should)
+            // not the fairest policy to have each thread reenter the lobby on each retry
+            val enter = enterThroughLobby(constraint, select, retryOnUNSAT)
             if (!enter) {
-                // this means that the thread was interrupted, which implies an abort
                 return SyncChannelResult.abort()
             }
 
@@ -77,6 +79,10 @@ class SyncChannel<V : Any, C : Any>(
     }
 
     private fun enterThroughLobby(constraint : Optional<C>, select : Optional<Select>, retryOnUNSAT : Boolean) : Boolean {
+        if (checkIsClosed()) {
+            return false
+        }
+
         // wait to enter the channel
         lobbyLock.lock()
         try {
@@ -108,6 +114,11 @@ class SyncChannel<V : Any, C : Any>(
             return true
         }
         catch (e : InterruptedException) {
+            // there are two await() calls in this try, so two possible places where an interrupt can happen.
+            // the first requires no clean up, but the second one does.
+            // TODO to clean up after the second await(), we need to add more book keeping to size, constraints, and
+            // TODO selects to keep track of each thread in the lobby, and we can remove them here so they correctly
+            // TODO exit the lobby.
             return false
         }
         finally {

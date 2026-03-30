@@ -1,7 +1,6 @@
 package exspecs.concurrency
 
-import org.testng.Assert.assertEquals
-import org.testng.Assert.assertTrue
+import org.testng.Assert.*
 import org.testng.annotations.Test
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
@@ -120,36 +119,89 @@ class SyncChannelTest {
             }
     }
 
-    // TODO test cancellation
-    /*
-    /**
-     * This test needs to be fixed to actually test cancellation!
-     */
     @Test
-    fun testOneChannelCancellation() {
-        val randGen = { Random().nextInt() }
-        val chan1 = exspecs.concurrency.SyncChannel<Int>(2, randGen)
-        for (i in 0.. 100) {
-            val ffun : (Int)->Boolean = { false }
+    fun testClose1() {
+        for (i in 1.. 100) {
+            val chan = SyncChannel<Unit,Unit>(2) { Optional.empty() }
             val t1 = Thread {
-                val rv = chan1.sync().get()
-                println("t1: $rv")
+                chan.sync()
             }
-            val t2 = Thread {
-                val rv = chan1.sync().get()
-                println("t2: $rv")
-            }
-            val t3 = Thread {
-                val rv = chan1.sync().get()
-                println("t3: $rv")
-            }
-
-            val tpool = Executors.newFixedThreadPool(1000)
-            tpool.submit(t1)
-            tpool.submit(t2)
-            tpool.submit(t3)
-            tpool.shutdown()
+            t1.start()
+            assertTrue(t1.isAlive)
+            chan.close()
+            t1.join(100)
+            assertFalse(t1.isAlive)
         }
     }
-     */
+
+    @Test
+    fun testClose2() {
+        for (i in 1.. 20) {
+            val chan = SyncChannel<Int,Int>(2) { Optional.of(0) }
+            val t1 = Thread { chan.sync() }
+            val t2 = Thread { chan.sync() }
+            val t3 = Thread { chan.sync() }
+            t1.start()
+            t2.start()
+            t3.start()
+            t1.join(100)
+            t2.join(100)
+            t3.join(100)
+            // two threads will have synced, so exactly one must be alive
+            assertTrue(t1.isAlive || t2.isAlive || t3.isAlive)
+            assertTrue((!t1.isAlive && !t2.isAlive) || (!t1.isAlive && !t3.isAlive) || (!t2.isAlive && !t3.isAlive))
+
+            chan.close()
+            t1.join(100)
+            t2.join(100)
+            t3.join(100)
+            assertFalse(t1.isAlive)
+            assertFalse(t2.isAlive)
+            assertFalse(t3.isAlive)
+        }
+    }
+
+    @Test
+    fun testInterrupt1() {
+        for (i in 1.. 100) {
+            val chan = SyncChannel<Unit,Unit>(2) { Optional.empty() }
+            val t1 = Thread {
+                chan.sync()
+            }
+            t1.start()
+            assertTrue(t1.isAlive)
+            t1.interrupt()
+            t1.join(100)
+            assertFalse(t1.isAlive)
+        }
+    }
+
+    @Test
+    fun testInterrupt2() {
+        for (i in 1.. 20) {
+            val chan = SyncChannel<Int,Int>(2) { Optional.of(0) }
+            val t1 = Thread { chan.sync() }
+            val t2 = Thread { chan.sync() }
+            val t3 = Thread { chan.sync() }
+            t1.start()
+            t2.start()
+            t3.start()
+            t1.join(100)
+            t2.join(100)
+            t3.join(100)
+            // two threads will have synced, so exactly one must be alive
+            assertTrue(t1.isAlive || t2.isAlive || t3.isAlive)
+            assertTrue((!t1.isAlive && !t2.isAlive) || (!t1.isAlive && !t3.isAlive) || (!t2.isAlive && !t3.isAlive))
+
+            t1.interrupt()
+            t2.interrupt()
+            t3.interrupt()
+            t1.join(100)
+            t2.join(100)
+            t3.join(100)
+            assertFalse(t1.isAlive)
+            assertFalse(t2.isAlive)
+            assertFalse(t3.isAlive)
+        }
+    }
 }
