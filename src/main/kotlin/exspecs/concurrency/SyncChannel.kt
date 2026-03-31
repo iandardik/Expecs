@@ -11,19 +11,23 @@ class SyncChannel<V : Any, C : Any>(
     private val syncSize : Int,
     private val compute : (Set<C>)->Optional<V>
 ) {
+    // the shared variables used in the lobby
     private val lobbyLock = ReentrantLock()
     private val lobbyCond = lobbyLock.newCondition()
-    private val comLock = ReentrantLock()
-    private val comCond = comLock.newCondition()
-    private val closedLock = ReentrantLock()
-
     private var size = 0
     private var constraints = emptySet<C>()
+    private var selects : Set<Select> = emptySet()
+
+    // the shared variables used for communication while attempting to sync
+    private val comLock = ReentrantLock()
+    private val comCond = comLock.newCondition()
     private var syncValue = SyncChannelResult.none<V>()
     private var commitVotes = 0
     private var aborted = false
     private var numExited = 0
-    private var selects : Set<Select> = emptySet()
+
+    // the shared variable used for closing this channel
+    private val closedLock = ReentrantLock()
     private var closed = false
 
     fun sync(select : Optional<Select> = Optional.empty(), retryOnUNSAT : Boolean = true) : SyncChannelResult<V> {
@@ -203,6 +207,7 @@ class SyncChannel<V : Any, C : Any>(
             }
         }
         catch (e : InterruptedException) {
+            aborted = true
             comCond.signalAll()
             return SyncChannelResult.abort()
         }

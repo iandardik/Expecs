@@ -10,22 +10,22 @@ class SyncChannelTest {
 
     @Test
     fun test1Channel1Sync() {
-        businessLogic1Channel(1, 100)
+        businessLogic1Channel(1, 1000)
     }
 
     @Test
     fun test1Channel2Sync() {
-        businessLogic1Channel(2, 100)
+        businessLogic1Channel(2, 1000)
     }
 
     @Test
     fun test1Channel3Sync() {
-        businessLogic1Channel(3, 99)
+        businessLogic1Channel(3, 999)
     }
 
     @Test
     fun test1Channel4Sync() {
-        businessLogic1Channel(4, 100)
+        businessLogic1Channel(4, 1000)
     }
 
     private fun businessLogic1Channel(syncSize : Int, numThreads : Int) {
@@ -58,22 +58,22 @@ class SyncChannelTest {
 
     @Test
     fun test2Channels1Sync() {
-        businessLogic2Channels(1, 100)
+        businessLogic2Channels(1, 1000)
     }
 
     @Test
     fun test2Channels2Sync() {
-        businessLogic2Channels(2, 100)
+        businessLogic2Channels(2, 1000)
     }
 
     @Test
     fun test2Channels3Sync() {
-        businessLogic2Channels(3, 99)
+        businessLogic2Channels(3, 999)
     }
 
     @Test
     fun test2Channels4Sync() {
-        businessLogic2Channels(4, 100)
+        businessLogic2Channels(4, 1000)
     }
 
     private fun businessLogic2Channels(syncSize : Int, numThreads : Int) {
@@ -121,7 +121,7 @@ class SyncChannelTest {
 
     @Test
     fun testClose1() {
-        for (i in 1.. 100) {
+        for (i in 1.. 1000) {
             val chan = SyncChannel<Unit,Unit>(2) { Optional.empty() }
             val t1 = Thread {
                 chan.sync()
@@ -163,7 +163,7 @@ class SyncChannelTest {
 
     @Test
     fun testInterrupt1() {
-        for (i in 1.. 100) {
+        for (i in 1.. 1000) {
             val chan = SyncChannel<Unit,Unit>(2) { Optional.empty() }
             val t1 = Thread {
                 chan.sync()
