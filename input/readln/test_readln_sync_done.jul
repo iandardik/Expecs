@@ -1,0 +1,29 @@
+p-class S {
+    var x : Int = 0
+    var state : String = "A"
+    var prev : Int = 0
+
+    action PromptUserInt() {
+        guard:
+            state = "A"
+        update:
+            state := "B"
+    }
+    
+    action ReadlnInt(msg : Int) {
+        guard:
+            state = "B"
+        update:
+            x := x + msg
+            state := "C"
+            prev := msg
+    }
+
+    action PrintlnInt(msg : Int) {
+        guard:
+            (state = "C") & (msg = x) & (prev >= 0)
+        update:
+            state := "A"
+    }
+}
+

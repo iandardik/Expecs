@@ -121,7 +121,9 @@ class ASTBuilder : ExspecParserBaseVisitor<ASTNode>() {
         } else if (ctx.FALSE() != null) {
             ValueExprNode(ctx.FALSE().text, "Bool")
         } else if (ctx.STRING() != null) {
-            ValueExprNode(ctx.STRING().text, "String")
+            val rawStr = ctx.STRING().text
+            val unquotedStr = rawStr.substring(1,rawStr.length-1)
+            ValueExprNode(unquotedStr, "String")
         } else {
             throw RuntimeException("Invalid visitValue: invalid expression found: ${ctx.text}")
         }

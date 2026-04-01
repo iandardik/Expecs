@@ -1,27 +1,25 @@
 p-class S {
-    var x : Int = 0
+    var x : String = "none"
     var state : String = "A"
-    var prev : Int = 0
 
-    action PromptUser() {
+    action PromptUser(msg : String) {
         guard:
-            state = "A"
+            state = "A" & msg = "Enter a message:"
         update:
             state := "B"
     }
     
-    action Readln(msg : Int) {
+    action Readln(msg : String) {
         guard:
             state = "B"
         update:
-            x := x + msg
+            x := msg
             state := "C"
-            prev := msg
     }
 
-    action Println(msg : Int) {
+    action Println(msg : String) {
         guard:
-            (state = "C") & (msg = x) & (prev >= 0)
+            (state = "C") & (msg = x) & ~(x = "done")
         update:
             state := "A"
     }

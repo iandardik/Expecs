@@ -5,11 +5,13 @@ import com.microsoft.z3.Context
 import com.microsoft.z3.Status
 import exspecs.concurrency.SyncChannel
 import exspecs.program.library.makePrintln
+import exspecs.program.library.makePrintlnInt
 import exspecs.program.library.makeReadln
+import exspecs.program.library.makeReadlnInt
 import java.util.*
 
 // TODO this can be done much better
-val library = setOf(makePrintln(), makeReadln())
+val library = setOf(makePrintln(), makePrintlnInt(), makeReadln(), makeReadlnInt())
 
 /**
  * A program represents one or more processes that interact together on a single computer.

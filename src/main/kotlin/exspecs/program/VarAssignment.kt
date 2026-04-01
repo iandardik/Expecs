@@ -12,10 +12,15 @@ fun createVarAssignment(variable : Variable, ctx : Context, model : Model) : Var
             val intVal = Integer.parseInt(valExpr.toString())
             IntVarAssignment(variable, intVal)
         }
+        "Bool" -> {
+            val valExpr = model.eval(ctx.mkBoolConst(variable.name), true)
+            val boolVal = valExpr.string.lowercase() == "true"
+            BoolVarAssignment(variable, boolVal)
+        }
         "String" -> {
             val valExpr = model.eval(ctx.mkStringConst(variable.name), true)
-            val intVal = Integer.parseInt(valExpr.toString())
-            IntVarAssignment(variable, intVal)
+            val strVal = valExpr.string
+            StringVarAssignment(variable, strVal)
         }
         else -> throw RuntimeException("createVarAssignment(): Unsupported type: ${variable.type}")
     }
@@ -55,6 +60,22 @@ class IntVarAssignment(
     override fun getValue() = value
 }
 
+class BoolVarAssignment(
+    variable : Variable,
+    private val value : Boolean
+) : VarAssignmentBase(variable) {
+    init {
+        exspecs.tools.assert(variable.type == "Bool", "BoolVarAssignment expected variable of type Bool")
+    }
+    override fun toExpr(ctx : Context) : BoolExpr {
+        return ctx.mkEq(ctx.mkBoolConst(getVariable().name), ctx.mkBool(value))
+    }
+    override fun toString(): String {
+        return "${getVariable()} |-> $value"
+    }
+    override fun getValue() = value
+}
+
 class StringVarAssignment(
     variable : Variable,
     private val value : String
@@ -66,7 +87,7 @@ class StringVarAssignment(
         return ctx.mkEq(ctx.mkStringConst(getVariable().name), ctx.mkString(value))
     }
     override fun toString(): String {
-        return "${getVariable()} |-> $value"
+        return "${getVariable()} |-> \"$value\""
     }
     override fun getValue() = value
 }

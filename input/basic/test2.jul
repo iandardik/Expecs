@@ -1,0 +1,30 @@
+p-class S {
+    var x : String = "noneS"
+    var p : String = "true"
+    
+    action I(msg : String) {
+        guard:
+            (msg = x) & (p = "false")
+        update:
+            x := msg
+            p := "true"
+    }
+
+    action Println(msg : String) {
+        guard:
+            (p = "true") & (msg = x)
+        update:
+            p := "false"
+    }
+}
+
+p-class T {
+    var y : String = "noneT"
+
+    action I(msg : String) {
+        guard:
+            true
+        update:
+            y := msg
+    }
+}

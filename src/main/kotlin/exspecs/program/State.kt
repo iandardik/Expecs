@@ -13,7 +13,7 @@ class State(
 
     fun lookup(arg : Variable) : Any {
         val argMatches = assignments.filter { it.getVariable() == arg }
-        assert(argMatches.size == 1, "State: expected one assignment to variable: $arg")
+        assert(argMatches.size == 1, "State: expected one assignment to variable: $arg, found ${argMatches.size}\n$assignments")
         return argMatches.first().getValue()
     }
 

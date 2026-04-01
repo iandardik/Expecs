@@ -7,6 +7,7 @@ import exspecs.tools.mkStringConst
 interface TypedNode {}
 
 interface TypedExprNode : TypedNode {
+    // TODO rename this method, since it's not necessarily a BoolExpr
     fun toZ3BoolExpr(ctx : Context, symbolTypeTable : MutableMap<String,String>) : Expr<out Sort?>
     fun <T> toUpdateExpr(symbolTypeTable : MutableMap<String,String>) : UpdateExpr<T>
     fun getType() : String
@@ -288,6 +289,7 @@ class TypedValueExprNode(
     override fun toZ3BoolExpr(ctx: Context, symbolTypeTable : MutableMap<String,String>) : Expr<out Sort?> {
         return when (type) {
             "Int" -> ctx.mkInt(Integer.parseInt(value))
+            "Bool" -> ctx.mkBool(value.lowercase() == "true")
             "String" -> ctx.mkString(value)
             "Symbol" -> when (symbolTypeTable[value]) {
                 "Int" -> ctx.mkIntConst(value)

@@ -101,6 +101,10 @@ class StringVarUpdateExpr(
     private val variable : Variable
 ) : UpdateExpr<String> {
     override fun eval(state : State, act : ConcreteAction) : String {
+        // action parameters are at a tighter scope than the state variables
+        if (act.hasArg(variable)) {
+            return act.lookup(variable) as String
+        }
         return state.lookup(variable) as String
     }
 }
