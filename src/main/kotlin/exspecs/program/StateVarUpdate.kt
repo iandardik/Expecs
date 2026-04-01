@@ -21,6 +21,18 @@ class IntStateVarUpdate(
     }
 }
 
+class BoolStateVarUpdate(
+    private val variable : Variable,
+    private val updateExpr : UpdateExpr<Boolean>
+) : StateVarUpdate {
+    override fun updateAssignment(state : State, act : ConcreteAction) : VarAssignment {
+        return BoolVarAssignment(variable, updateExpr.eval(state, act))
+    }
+    override fun toString(): String {
+        return "${variable.name} := $updateExpr"
+    }
+}
+
 class StringStateVarUpdate(
     private val variable : Variable,
     private val updateExpr : UpdateExpr<String>

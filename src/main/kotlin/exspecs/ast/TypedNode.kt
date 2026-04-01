@@ -62,6 +62,10 @@ class TypedVarDeclNode(
                 val intVal = expr.evalToInt()
                 IntVarAssignment(Variable(name,type), intVal)
             }
+            "Bool" -> {
+                val boolVal = expr.evalToBool()
+                BoolVarAssignment(Variable(name,type), boolVal)
+            }
             "String" -> {
                 val strVal = expr.evalToString()
                 StringVarAssignment(Variable(name,type), strVal)
@@ -148,6 +152,7 @@ class TypedVarUpdateNode(
     fun toStateVarUpdate(symbolTypeTable : MutableMap<String,String>) : StateVarUpdate {
         return when (val type = update.getType()) {
             "Int" -> IntStateVarUpdate(Variable(varName,type), update.toUpdateExpr(symbolTypeTable))
+            "Bool" -> BoolStateVarUpdate(Variable(varName,type), update.toUpdateExpr(symbolTypeTable))
             "String" -> StringStateVarUpdate(Variable(varName,type), update.toUpdateExpr(symbolTypeTable))
             "Symbol" -> {
                 return when (symbolTypeTable[varName]) {
@@ -239,6 +244,9 @@ class TypedBinaryOpExprNode(
         return when (op) {
             "+" -> PlusIntUpdateExpr(lhsOperand.toUpdateExpr(symbolTypeTable), rhsOperand.toUpdateExpr(symbolTypeTable)) as UpdateExpr<T>
             "-" -> MinusIntUpdateExpr(lhsOperand.toUpdateExpr(symbolTypeTable), rhsOperand.toUpdateExpr(symbolTypeTable)) as UpdateExpr<T>
+            "=" ->
+                // TODO the fact that we need to use Any here is terrible
+                EqUpdateExpr(lhsOperand.toUpdateExpr<Any>(symbolTypeTable), rhsOperand.toUpdateExpr(symbolTypeTable)) as UpdateExpr<T>
             else -> throw RuntimeException("Unsupported or invalid binary op: $op")
         }
     }
@@ -293,6 +301,7 @@ class TypedValueExprNode(
             "String" -> ctx.mkString(value)
             "Symbol" -> when (symbolTypeTable[value]) {
                 "Int" -> ctx.mkIntConst(value)
+                "Bool" -> ctx.mkBoolConst(value)
                 "String" -> ctx.mkStringConst(value)
                 else -> throw RuntimeException("Unsupported symbol type: ${symbolTypeTable[value]}")
             }

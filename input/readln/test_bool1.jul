@@ -1,0 +1,27 @@
+p-class S {
+    var x : Bool = true
+    var state : String = "A"
+
+    action PromptUser(msg : String) {
+        guard:
+            state = "A" & msg = "Enter a message:"
+        update:
+            state := "B"
+    }
+    
+    action Readln(msg : String) {
+        guard:
+            state = "B"
+        update:
+            x := ~(msg = "done")
+            state := "C"
+    }
+
+    action Println(msg : String) {
+        guard:
+            (state = "C") & (msg = "ok") & x
+        update:
+            state := "A"
+    }
+}
+
