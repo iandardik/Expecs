@@ -83,9 +83,10 @@ class SyncChannel<V : Any, C : Any>(
     }
 
     private fun enterThroughLobby(constraint : Optional<C>, select : Optional<Select>, retryOnUNSAT : Boolean) : Boolean {
-        if (checkIsClosed()) {
+        // TODO figure out the reason this causes programs to hang, then put this back in to pass the "testClose1" test case
+        /*if (checkIsClosed()) {
             return false
-        }
+        }*/
 
         // wait to enter the channel
         lobbyLock.lock()
