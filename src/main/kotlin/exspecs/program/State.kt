@@ -5,19 +5,25 @@ import com.microsoft.z3.Context
 import exspecs.tools.assert
 
 class State(
-    val assignments : Set<VarAssignment>
+    val assignments : Map<Variable,Value>
 ) {
-    fun toExpr(ctx : Context) : BoolExpr {
-        return assignments.fold(ctx.mkTrue()) { acc,assg -> ctx.mkAnd(acc,assg.toExpr(ctx)) }
+    fun toZ3Expr(ctx : Context) : BoolExpr {
+        val equalExprs = assignments.map { (k,v) -> ctx.mkEq(k.toZ3Expr(ctx), v.toZ3Expr(ctx)) }
+        return ctx.mkAnd(*equalExprs.toTypedArray())
     }
 
-    fun lookup(arg : Variable) : Any {
-        val argMatches = assignments.filter { it.getVariable() == arg }
-        assert(argMatches.size == 1, "State: expected one assignment to variable: $arg, found ${argMatches.size}\n$assignments")
-        return argMatches.first().getValue()
+    fun lookup(variable : Variable) : Value {
+        assert(variable in assignments, "State.lookup($variable): not in this state!")
+        return assignments[variable]!!
     }
 
     override fun toString(): String {
-        return assignments.joinToString("\n") { it.toString() }
+        return assignments
+            .map { (k,v) -> "  $k = $v" }
+            .joinToString("\n")
     }
+}
+
+fun emptyState() : State {
+    return State(emptyMap())
 }

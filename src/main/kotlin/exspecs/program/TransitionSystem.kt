@@ -10,7 +10,7 @@ import com.microsoft.z3.Context
 interface TransitionSystem {
     fun alphabet() : Set<SymbolicAction>
 
-    fun currentState() : BoolExpr
+    fun currentStateToZ3Expr() : BoolExpr
 
     fun transit(act : ConcreteAction)
 

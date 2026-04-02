@@ -47,8 +47,7 @@ class Program : Runnable {
                 // created by different Contexts.
                 constraints.forEach { c -> solver.add(c.translate(ctx)) }
                 if (solver.check() == Status.SATISFIABLE) {
-                    val argValues = act.args.map { createVarAssignment(it,ctx,solver.model) }.toSet()
-                    Optional.of(ConcreteAction(act, argValues))
+                    Optional.of(ConcreteAction(act, ctx, solver.model))
                 } else {
                     Optional.empty()
                 }

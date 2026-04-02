@@ -17,8 +17,8 @@ class GenericTransitionSystem(
     override fun alphabet() = alphabet
     override fun selfTerminate() = selfTerminate
 
-    override fun currentState() : BoolExpr {
-        return state.toExpr(ctx)
+    override fun currentStateToZ3Expr() : BoolExpr {
+        return state.toZ3Expr(ctx)
     }
 
     /**
@@ -27,15 +27,14 @@ class GenericTransitionSystem(
     override fun transit(concAct : ConcreteAction) {
         val symAct = correspondingSymbolicAction(concAct)
         symAct.sideEffect.ifPresent { state = it.invoke(state,concAct) }
-        val explicitlyUpdatedAssignments = symAct.varUpdates
-            .map { update -> update.updateAssignment(state,concAct) }
-            .toSet()
-        val explicitlyUpdatedVarNames = explicitlyUpdatedAssignments.map { it.getVariable() }.toSet()
-        val frameUpdateAssignments = state.assignments
-            .filter { !explicitlyUpdatedVarNames.contains(it.getVariable()) }
-            .toSet()
-        val allUpdatedAssignments = explicitlyUpdatedAssignments union frameUpdateAssignments
-        state = State(allUpdatedAssignments)
+        val updatedAssignments = state.assignments.map { (k,v) ->
+            if (k in symAct.varUpdates) {
+                Pair(k, symAct.varUpdates[k]!!.eval(state,concAct))
+            } else {
+                Pair(k,v)
+            }
+        }.associate { it }
+        state = State(updatedAssignments)
     }
 
     private fun correspondingSymbolicAction(concAct : ConcreteAction) : SymbolicAction {

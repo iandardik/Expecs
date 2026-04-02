@@ -4,17 +4,13 @@ import com.microsoft.z3.*
 import exspecs.program.*
 import exspecs.tools.mkStringConst
 
+// TODO there is a bug with having multiple procs with the same local var name
+
 interface TypedNode {}
 
 interface TypedExprNode : TypedNode {
-    // TODO rename this method, since it's not necessarily a BoolExpr
-    fun toZ3BoolExpr(ctx : Context, symbolTypeTable : MutableMap<String,String>) : Expr<out Sort?>
-    fun <T> toUpdateExpr(symbolTypeTable : MutableMap<String,String>) : UpdateExpr<T>
-    fun getType() : String
-    // TODO these methods below should probably (instead) return some sort of tree to evaluate the expression
-    fun evalToInt() : Int
-    fun evalToString() : String
-    fun evalToBool() : Boolean
+    fun toZ3Expr(ctx : Context, symbolTypeTable : Map<String,Type>) : Expr<*>
+    fun toProgramExpr(symbolTypeTable : Map<String,Type>) : ProgramExpr
 }
 
 class TypedProgramNode(
@@ -34,13 +30,16 @@ class TypedProcClassNode(
     private val varDecls : List<TypedVarDeclNode>,
     private val actionDecls : List<TypedActionDeclNode>
 ) : TypedNode {
-    private val symbolTypeTable = mutableMapOf<String,String>()
+    private val symbolTypeTable = mutableMapOf<String,Type>()
 
     fun toTransitionSystem() : TransitionSystem {
-        val initStateAssignments = varDecls.map { it.toAssignment(symbolTypeTable) }.toSet()
+        val initStateAssignments = varDecls
+            .map { it.toAssignment() }
+            .associate { it }
         val initState = State(initStateAssignments)
 
         val ctx = Context()
+        val symbolTypeTable = initStateAssignments.keys.associate { Pair(it.name,it.type) }
         val alphabet = actionDecls.map { it.toSymbolicAction(ctx,symbolTypeTable) }.toSet()
         return GenericTransitionSystem(initState, alphabet, name, ctx)
     }
@@ -52,29 +51,18 @@ class TypedProcClassNode(
 
 class TypedVarDeclNode(
     private val name : String,
-    private val type : String,
-    private val expr : TypedExprNode
+    private val type : Type,
+    private val initExpr : TypedExprNode
 ) : TypedNode {
-    fun toAssignment(symbolTypeTable : MutableMap<String,String>) : VarAssignment {
-        symbolTypeTable[name] = type
-        return when (type) {
-            "Int" -> {
-                val intVal = expr.evalToInt()
-                IntVarAssignment(Variable(name,type), intVal)
-            }
-            "Bool" -> {
-                val boolVal = expr.evalToBool()
-                BoolVarAssignment(Variable(name,type), boolVal)
-            }
-            "String" -> {
-                val strVal = expr.evalToString()
-                StringVarAssignment(Variable(name,type), strVal)
-            }
-            else -> throw RuntimeException("Encountered unknown type: $type")
-        }
+    fun toAssignment() : Pair<Variable,Value> {
+        val variable = Variable(name,type)
+        // precompute the value statically, since it will be known at "compile" time
+        val precomputedValue = initExpr.toProgramExpr(emptyMap()).eval(emptyState(), emptyConcreteAction())
+        val value = Value(precomputedValue.value,type)
+        return Pair(variable,value)
     }
     override fun toString(): String {
-        return "var $name : $type = $expr"
+        return "var $name : $type = $initExpr"
     }
 }
 
@@ -84,13 +72,17 @@ class TypedActionDeclNode(
     private val guards : List<TypedGuardNode>,
     private val updates : List<TypedUpdateNode>,
 ) : TypedNode {
-    fun toSymbolicAction(ctx : Context, symbolTypeTable : MutableMap<String,String>) : SymbolicAction {
-        val sig = ActionSignature(name, args.toVariables(symbolTypeTable))
+    fun toSymbolicAction(ctx : Context, symbolTypeTable : Map<String,Type>) : SymbolicAction {
+        val sig = ActionSignature(name, args.toVariables())
+        // create a new symbol table with the action arguments (action args have a stronger scope than state vars)
+        val symbolTypeTableWithActs = symbolTypeTable + (sig.args.map { Pair(it.name,it.type) }.associate { it })
+
         val guard = guards.fold(ctx.mkTrue()) { acc,g ->
-            val gExpr = g.toZ3BoolExpr(ctx,symbolTypeTable) as BoolExpr
+            val gExpr = g.toZ3Expr(ctx,symbolTypeTableWithActs) as BoolExpr
             ctx.mkAnd(acc,gExpr)
         }
-        val varUpdates = updates.flatMap { it.toStateVarUpdate(symbolTypeTable) }.toSet()
+        val varUpdates = updates // TODO need to make sure variables are not updated multiple times
+            .fold(emptyMap<Variable,ProgramExpr>()) { acc,u -> acc + u.toStateVarUpdate(symbolTypeTableWithActs) }
         return SymbolicAction(sig, guard, varUpdates)
     }
     override fun toString(): String {
@@ -102,8 +94,8 @@ class TypedActionDeclNode(
 class TypedActionArgsNode(
     private val args : List<TypedActionArgNode>
 ) : TypedNode {
-    fun toVariables(symbolTypeTable : MutableMap<String,String>) : List<Variable> {
-        return args.map { it.toVariable(symbolTypeTable) }
+    fun toVariables() : List<Variable> {
+        return args.map { it.toVariable() }
     }
     override fun toString(): String {
         return args.joinToString(", ") { it.toString() }
@@ -112,10 +104,9 @@ class TypedActionArgsNode(
 
 class TypedActionArgNode(
     private val name : String,
-    private val type : String
+    private val type : Type
 ) : TypedNode {
-    fun toVariable(symbolTypeTable : MutableMap<String,String>) : Variable {
-        symbolTypeTable[name] = type
+    fun toVariable() : Variable {
         return Variable(name, type)
     }
     override fun toString(): String {
@@ -126,8 +117,8 @@ class TypedActionArgNode(
 class TypedGuardNode(
     private val guardExpr : TypedExprNode
 ) : TypedNode {
-    fun toZ3BoolExpr(ctx : Context, symbolTypeTable : MutableMap<String,String>) : Expr<out Sort?> {
-        return guardExpr.toZ3BoolExpr(ctx,symbolTypeTable)
+    fun toZ3Expr(ctx : Context, symbolTypeTable : Map<String,Type>) : Expr<*> {
+        return guardExpr.toZ3Expr(ctx,symbolTypeTable)
     }
     override fun toString(): String {
         return "guard:\n      $guardExpr"
@@ -137,8 +128,8 @@ class TypedGuardNode(
 class TypedUpdateNode(
     private val updates : List<TypedVarUpdateNode>
 ) : TypedNode {
-    fun toStateVarUpdate(symbolTypeTable : MutableMap<String,String>) : Set<StateVarUpdate> {
-        return updates.map { it.toStateVarUpdate(symbolTypeTable) }.toSet()
+    fun toStateVarUpdate(symbolTypeTable : Map<String,Type>) : Map<Variable,ProgramExpr> {
+        return updates.associate { it.toStateVarUpdate(symbolTypeTable) }
     }
     override fun toString(): String {
         return "update:${updates.joinToString("") { "\n      $it" }}"
@@ -149,20 +140,8 @@ class TypedVarUpdateNode(
     private val varName : String,
     private val update : TypedExprNode
 ) : TypedNode {
-    fun toStateVarUpdate(symbolTypeTable : MutableMap<String,String>) : StateVarUpdate {
-        return when (val type = update.getType()) {
-            "Int" -> IntStateVarUpdate(Variable(varName,type), update.toUpdateExpr(symbolTypeTable))
-            "Bool" -> BoolStateVarUpdate(Variable(varName,type), update.toUpdateExpr(symbolTypeTable))
-            "String" -> StringStateVarUpdate(Variable(varName,type), update.toUpdateExpr(symbolTypeTable))
-            "Symbol" -> {
-                return when (symbolTypeTable[varName]) {
-                    "Int" -> IntStateVarUpdate(Variable(varName,symbolTypeTable[varName]!!), update.toUpdateExpr(symbolTypeTable))
-                    "String" -> StringStateVarUpdate(Variable(varName,symbolTypeTable[varName]!!), update.toUpdateExpr(symbolTypeTable))
-                    else -> throw RuntimeException("Unexpected type '${symbolTypeTable[varName]}' for update: $varName := $update")
-                }
-            }
-            else -> throw RuntimeException("Unexpected type '$type' for update: $varName := $update")
-        }
+    fun toStateVarUpdate(symbolTypeTable : Map<String,Type>) : Pair<Variable,ProgramExpr> {
+        return Pair(Variable(varName,symbolTypeTable[varName]!!), update.toProgramExpr(symbolTypeTable))
     }
     override fun toString(): String {
         return "$varName := $update"
@@ -173,44 +152,16 @@ class TypedUnaryOpExprNode(
     private val op : String,
     private val operand : TypedExprNode
 ) : TypedExprNode {
-    override fun toZ3BoolExpr(ctx: Context, symbolTypeTable : MutableMap<String,String>) : Expr<out Sort?> {
+    override fun toZ3Expr(ctx: Context, symbolTypeTable: Map<String, Type>): Expr<*> {
         return when (op) {
-            "~" -> ctx.mkNot(operand.toZ3BoolExpr(ctx,symbolTypeTable) as BoolExpr)
+            "~" -> ctx.mkNot(operand.toZ3Expr(ctx,symbolTypeTable) as BoolExpr)
             else -> throw RuntimeException("Invalid unary op: $op")
         }
     }
 
-    override fun <T> toUpdateExpr(symbolTypeTable : MutableMap<String,String>): UpdateExpr<T> {
+    override fun toProgramExpr(symbolTypeTable: Map<String, Type>): ProgramExpr {
         return when (op) {
-            "~" -> NotUpdateExpr(operand.toUpdateExpr(symbolTypeTable)) as UpdateExpr<T>
-            else -> throw RuntimeException("Invalid unary op: $op")
-        }
-    }
-
-    override fun getType(): String {
-        return when (op) {
-            "~" -> "Bool"
-            else -> throw RuntimeException("Invalid unary op: $op")
-        }
-    }
-
-    override fun evalToInt(): Int {
-        return when (op) {
-            "~" -> throw RuntimeException("Not an Int")
-            else -> throw RuntimeException("Invalid unary op: $op")
-        }
-    }
-
-    override fun evalToString(): String {
-        return when (op) {
-            "~" -> throw RuntimeException("Not a String")
-            else -> throw RuntimeException("Invalid unary op: $op")
-        }
-    }
-
-    override fun evalToBool(): Boolean {
-        return when (op) {
-            "~" -> !operand.evalToBool()
+            "~" -> NotProgramExpr(operand.toProgramExpr(symbolTypeTable))
             else -> throw RuntimeException("Invalid unary op: $op")
         }
     }
@@ -225,61 +176,28 @@ class TypedBinaryOpExprNode(
     private val lhsOperand : TypedExprNode,
     private val rhsOperand : TypedExprNode
 ) : TypedExprNode {
-    override fun toZ3BoolExpr(ctx: Context, symbolTypeTable : MutableMap<String,String>) : Expr<out Sort?> {
+    override fun toZ3Expr(ctx: Context, symbolTypeTable : Map<String,Type>) : Expr<*> {
         return when (op) {
-            "=" -> ctx.mkEq(lhsOperand.toZ3BoolExpr(ctx,symbolTypeTable), rhsOperand.toZ3BoolExpr(ctx,symbolTypeTable))
-            "<" -> ctx.mkLt(lhsOperand.toZ3BoolExpr(ctx,symbolTypeTable) as ArithExpr, rhsOperand.toZ3BoolExpr(ctx,symbolTypeTable) as ArithExpr)
-            "<=" -> ctx.mkLe(lhsOperand.toZ3BoolExpr(ctx,symbolTypeTable) as ArithExpr, rhsOperand.toZ3BoolExpr(ctx,symbolTypeTable) as ArithExpr)
-            ">" -> ctx.mkGt(lhsOperand.toZ3BoolExpr(ctx,symbolTypeTable) as ArithExpr, rhsOperand.toZ3BoolExpr(ctx,symbolTypeTable) as ArithExpr)
-            ">=" -> ctx.mkGe(lhsOperand.toZ3BoolExpr(ctx,symbolTypeTable) as ArithExpr, rhsOperand.toZ3BoolExpr(ctx,symbolTypeTable) as ArithExpr)
-            "&" -> ctx.mkAnd(lhsOperand.toZ3BoolExpr(ctx,symbolTypeTable) as BoolExpr, rhsOperand.toZ3BoolExpr(ctx,symbolTypeTable) as BoolExpr)
-            "|" -> ctx.mkOr(lhsOperand.toZ3BoolExpr(ctx,symbolTypeTable) as BoolExpr, rhsOperand.toZ3BoolExpr(ctx,symbolTypeTable) as BoolExpr)
-            "+" -> ctx.mkAdd(lhsOperand.toZ3BoolExpr(ctx,symbolTypeTable) as ArithExpr, rhsOperand.toZ3BoolExpr(ctx,symbolTypeTable) as ArithExpr)
-            "-" -> ctx.mkSub(lhsOperand.toZ3BoolExpr(ctx,symbolTypeTable) as ArithExpr, rhsOperand.toZ3BoolExpr(ctx,symbolTypeTable) as ArithExpr)
+            "=" -> ctx.mkEq(lhsOperand.toZ3Expr(ctx,symbolTypeTable), rhsOperand.toZ3Expr(ctx,symbolTypeTable))
+            "<" -> ctx.mkLt(lhsOperand.toZ3Expr(ctx,symbolTypeTable) as ArithExpr, rhsOperand.toZ3Expr(ctx,symbolTypeTable) as ArithExpr)
+            "<=" -> ctx.mkLe(lhsOperand.toZ3Expr(ctx,symbolTypeTable) as ArithExpr, rhsOperand.toZ3Expr(ctx,symbolTypeTable) as ArithExpr)
+            ">" -> ctx.mkGt(lhsOperand.toZ3Expr(ctx,symbolTypeTable) as ArithExpr, rhsOperand.toZ3Expr(ctx,symbolTypeTable) as ArithExpr)
+            ">=" -> ctx.mkGe(lhsOperand.toZ3Expr(ctx,symbolTypeTable) as ArithExpr, rhsOperand.toZ3Expr(ctx,symbolTypeTable) as ArithExpr)
+            "&" -> ctx.mkAnd(lhsOperand.toZ3Expr(ctx,symbolTypeTable) as BoolExpr, rhsOperand.toZ3Expr(ctx,symbolTypeTable) as BoolExpr)
+            "|" -> ctx.mkOr(lhsOperand.toZ3Expr(ctx,symbolTypeTable) as BoolExpr, rhsOperand.toZ3Expr(ctx,symbolTypeTable) as BoolExpr)
+            "+" -> ctx.mkAdd(lhsOperand.toZ3Expr(ctx,symbolTypeTable) as ArithExpr, rhsOperand.toZ3Expr(ctx,symbolTypeTable) as ArithExpr)
+            "-" -> ctx.mkSub(lhsOperand.toZ3Expr(ctx,symbolTypeTable) as ArithExpr, rhsOperand.toZ3Expr(ctx,symbolTypeTable) as ArithExpr)
             else -> throw RuntimeException("Invalid binary op: $op")
         }
     }
 
-    override fun <T> toUpdateExpr(symbolTypeTable : MutableMap<String,String>): UpdateExpr<T> {
+    override fun toProgramExpr(symbolTypeTable: Map<String, Type>): ProgramExpr {
         return when (op) {
-            "+" -> PlusIntUpdateExpr(lhsOperand.toUpdateExpr(symbolTypeTable), rhsOperand.toUpdateExpr(symbolTypeTable)) as UpdateExpr<T>
-            "-" -> MinusIntUpdateExpr(lhsOperand.toUpdateExpr(symbolTypeTable), rhsOperand.toUpdateExpr(symbolTypeTable)) as UpdateExpr<T>
-            "=" ->
-                // TODO the fact that we need to use Any here is terrible
-                EqUpdateExpr(lhsOperand.toUpdateExpr<Any>(symbolTypeTable), rhsOperand.toUpdateExpr(symbolTypeTable)) as UpdateExpr<T>
+            "+" -> PlusProgramExpr(lhsOperand.toProgramExpr(symbolTypeTable), rhsOperand.toProgramExpr(symbolTypeTable))
+            "-" -> MinusProgramExpr(lhsOperand.toProgramExpr(symbolTypeTable), rhsOperand.toProgramExpr(symbolTypeTable))
+            "=" -> EqProgramExpr(lhsOperand.toProgramExpr(symbolTypeTable), rhsOperand.toProgramExpr(symbolTypeTable))
             else -> throw RuntimeException("Unsupported or invalid binary op: $op")
         }
-    }
-
-    override fun getType(): String {
-        return when (op) {
-            "=" -> "Bool"
-            "<" -> "Bool"
-            "<=" -> "Bool"
-            ">" -> "Bool"
-            ">=" -> "Bool"
-            "&" -> "Bool"
-            "|" -> "Bool"
-            "+" -> "Int"
-            "-" -> "Int"
-            else -> throw RuntimeException("Invalid binary op: $op")
-        }
-    }
-
-    override fun evalToInt(): Int {
-        return when (op) {
-            "+" -> lhsOperand.evalToInt() + rhsOperand.evalToInt()
-            "-" -> lhsOperand.evalToInt() - rhsOperand.evalToInt()
-            else -> throw RuntimeException("Unsupported or invalid binary op: $op")
-        }
-    }
-
-    override fun evalToString(): String {
-        throw RuntimeException("Not supported")
-    }
-
-    override fun evalToBool(): Boolean {
-        throw RuntimeException("Not supported")
     }
 
     override fun toString(): String {
@@ -290,66 +208,50 @@ class TypedBinaryOpExprNode(
     }
 }
 
-class TypedValueExprNode(
+class TypedLiteralValueExprNode(
     private val value : String,
-    private val type : String
+    private val type : Type
 ) : TypedExprNode {
-    override fun toZ3BoolExpr(ctx: Context, symbolTypeTable : MutableMap<String,String>) : Expr<out Sort?> {
+    override fun toZ3Expr(ctx: Context, symbolTypeTable : Map<String,Type>) : Expr<*> {
         return when (type) {
-            "Int" -> ctx.mkInt(Integer.parseInt(value))
-            "Bool" -> ctx.mkBool(value.lowercase() == "true")
-            "String" -> ctx.mkString(value)
-            "Symbol" -> when (symbolTypeTable[value]) {
-                "Int" -> ctx.mkIntConst(value)
-                "Bool" -> ctx.mkBoolConst(value)
-                "String" -> ctx.mkStringConst(value)
-                else -> throw RuntimeException("Unsupported symbol type: ${symbolTypeTable[value]}")
-            }
+            is IntType -> ctx.mkInt(Integer.parseInt(value))
+            is BoolType -> ctx.mkBool(value.lowercase() == "true")
+            is StringType -> ctx.mkString(value)
             else -> throw RuntimeException("Unexpected type: $type")
         }
     }
 
-    override fun <T> toUpdateExpr(symbolTypeTable : MutableMap<String,String>): UpdateExpr<T> {
+    override fun toProgramExpr(symbolTypeTable: Map<String,Type>) : ProgramExpr {
         return when (type) {
-            // TODO these casts are ugly
-            "Int" -> IntUpdateExpr(Integer.parseInt(value)) as UpdateExpr<T>
-            "String" -> StringUpdateExpr(value) as UpdateExpr<T>
-            "Symbol" -> when (symbolTypeTable[value]) {
-                "Int" -> IntVarUpdateExpr(Variable(value,"Int")) as UpdateExpr<T>
-                "String" -> StringVarUpdateExpr(Variable(value,"String")) as UpdateExpr<T>
-                else -> throw RuntimeException("Unexpected symbol type: $type")
-            }
+            is BoolType -> BoolLiteralProgramExpr(value.lowercase() == "true")
+            is IntType -> IntLiteralProgramExpr(Integer.parseInt(value))
+            is StringType -> StringLiteralProgramExpr(value)
             else -> throw RuntimeException("Unexpected type: $type")
         }
-    }
-
-    override fun getType(): String {
-        return type
-    }
-
-    override fun evalToInt(): Int {
-        if (type != "Int") {
-            throw RuntimeException("Not an Int ($value : $type)")
-        }
-        return Integer.parseInt(value)
-    }
-
-    override fun evalToString(): String {
-        if (type != "String") {
-            throw RuntimeException("Not a String ($value : $type)")
-        }
-        return value
-    }
-
-    override fun evalToBool(): Boolean {
-        if (type != "Bool") {
-            throw RuntimeException("Not a Bool ($value : $type)")
-        }
-        // TODO sanity check for the value
-        return value == "true"
     }
 
     override fun toString(): String {
         return value
+    }
+}
+
+class TypedSymbolValueExprNode(
+    private val name : String
+) : TypedExprNode {
+    override fun toZ3Expr(ctx: Context, symbolTypeTable : Map<String,Type>) : Expr<*> {
+        return when (val type = symbolTypeTable[name]) {
+            is IntType -> ctx.mkIntConst(name)
+            is BoolType -> ctx.mkBoolConst(name)
+            is StringType -> ctx.mkStringConst(name)
+            else -> throw RuntimeException("Unexpected type: $type")
+        }
+    }
+
+    override fun toProgramExpr(symbolTypeTable: Map<String,Type>) : ProgramExpr {
+        return SymbolProgramExpr(Variable(name,symbolTypeTable[name]!!))
+    }
+
+    override fun toString(): String {
+        return name
     }
 }

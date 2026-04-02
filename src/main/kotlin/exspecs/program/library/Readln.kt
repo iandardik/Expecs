@@ -7,35 +7,35 @@ import java.util.*
 
 fun makeReadln() : TransitionSystem {
     val ctx = Context()
-    val initState = State(setOf(
-        StringVarAssignment(Variable("input","String"),""),
-        StringVarAssignment(Variable("read","String"),"true"),
+    val initState = State(mapOf<Variable,Value>(
+        Pair(Variable("input",stringType),Value("", stringType)),
+        Pair(Variable("read",stringType),Value("true", stringType)),
     ))
     val alphabet = setOf(
         SymbolicAction(
-            ActionSignature("PromptUser", listOf(Variable("msg","String"))),
+            ActionSignature("PromptUser", listOf(Variable("msg", stringType))),
             ctx.mkAnd(
                 ctx.mkEq(ctx.mkStringConst("read"), ctx.mkString("true")),
             ),
-            setOf(),
+            mapOf(),
             Optional.of { state, act ->
-                println(act.lookup(Variable("msg","String")))
+                println(act.lookup(Variable("msg", stringType)))
                 val input = readln()
                 State(
-                    setOf(
-                        StringVarAssignment(Variable("input", "String"), input),
-                        StringVarAssignment(Variable("read", "String"), "false"),
+                    mapOf(
+                        Pair(Variable("input", stringType), Value(input, stringType)),
+                        Pair(Variable("read", stringType), Value("false", stringType)),
                     )
                 )
             }
         ),
         SymbolicAction(
-            ActionSignature("Readln", listOf(Variable("msg","String"))),
+            ActionSignature("Readln", listOf(Variable("msg", stringType))),
             ctx.mkAnd(
                 ctx.mkEq(ctx.mkStringConst("read"), ctx.mkString("false")),
                 ctx.mkEq(ctx.mkStringConst("msg"), ctx.mkStringConst("input")),
             ),
-            setOf(StringStateVarUpdate(Variable("read","String"), StringUpdateExpr("true")))
+            mapOf(Pair(Variable("read", stringType), StringLiteralProgramExpr("true")))
         ),
     )
     // set selfTerminate to false because this is a library function
@@ -44,9 +44,9 @@ fun makeReadln() : TransitionSystem {
 
 fun makeReadlnInt() : TransitionSystem {
     val ctx = Context()
-    val initState = State(setOf(
-        IntVarAssignment(Variable("input","Int"),0),
-        StringVarAssignment(Variable("read","String"),"true"),
+    val initState = State(mapOf(
+        Pair(Variable("input", intType),Value(0, intType)),
+        Pair(Variable("read", stringType),Value("true", stringType)),
     ))
     val alphabet = setOf(
         SymbolicAction(
@@ -54,25 +54,25 @@ fun makeReadlnInt() : TransitionSystem {
             ctx.mkAnd(
                 ctx.mkEq(ctx.mkStringConst("read"), ctx.mkString("true")),
             ),
-            setOf(), //setOf(StringStateVarUpdate(Variable("read","String"), StringUpdateExpr("false"))),
+            mapOf(), //setOf(StringStateVarUpdate(Variable("read","String"), StringUpdateExpr("false"))),
             Optional.of { state, act ->
                 println("Enter an Int:")
                 val input = readln()
                 State(
-                    setOf(
-                        IntVarAssignment(Variable("input", "Int"), Integer.parseInt(input)),
-                        StringVarAssignment(Variable("read", "String"), "false"),
+                    mapOf(
+                        Pair(Variable("input", intType), Value(Integer.parseInt(input), intType)),
+                        Pair(Variable("read", stringType), Value("false", stringType)),
                     )
                 )
             }
         ),
         SymbolicAction(
-            ActionSignature("ReadlnInt", listOf(Variable("msg","Int"))),
+            ActionSignature("ReadlnInt", listOf(Variable("msg", intType))),
             ctx.mkAnd(
                 ctx.mkEq(ctx.mkStringConst("read"), ctx.mkString("false")),
                 ctx.mkEq(ctx.mkIntConst("msg"), ctx.mkIntConst("input")),
             ),
-            setOf(StringStateVarUpdate(Variable("read","String"), StringUpdateExpr("true")))
+            mapOf(Pair(Variable("read", stringType), StringLiteralProgramExpr("true")))
         ),
     )
     // set selfTerminate to false because this is a library function

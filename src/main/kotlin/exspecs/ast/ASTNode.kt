@@ -1,6 +1,6 @@
 package exspecs.ast
 
-import exspecs.program.Proc
+import exspecs.program.*
 import java.util.*
 
 interface ASTNode {}
@@ -43,7 +43,13 @@ class VarDeclNode(
         if (value !is ExprNode) {
             throw RuntimeException("Expected value of a var decl to be an expression")
         }
-        return TypedVarDeclNode(name, type, value.toTypedAST())
+        val typeClass = when (type) {
+            "Bool" -> BoolType()
+            "Int" -> IntType()
+            "String" -> StringType()
+            else -> InvalidType(type)
+        }
+        return TypedVarDeclNode(name, typeClass, value.toTypedAST())
     }
     override fun toString(): String {
         return "var $name : $type = $value"
@@ -103,7 +109,7 @@ class ActionArgNode(
     private val type : String
 ) : ASTNode {
     fun toTypedAST() : TypedActionArgNode {
-        return TypedActionArgNode(name, type)
+        return TypedActionArgNode(name, parseType(type))
     }
     override fun toString(): String {
         return "$name : $type"
@@ -195,14 +201,25 @@ class BinaryOpExprNode(
     }
 }
 
-class ValueExprNode(
+class LiteralValueExprNode(
     private val value : String,
-    private val type : String
+    private val type : Type
 ) : ExprNode {
     override fun toTypedAST(): TypedExprNode {
-        return TypedValueExprNode(value, type)
+        return TypedLiteralValueExprNode(value,type)
     }
     override fun toString(): String {
         return value
+    }
+}
+
+class SymbolValueExprNode(
+    private val symbol : String
+) : ExprNode {
+    override fun toTypedAST(): TypedExprNode {
+        return TypedSymbolValueExprNode(symbol)
+    }
+    override fun toString(): String {
+        return symbol
     }
 }

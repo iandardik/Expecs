@@ -11,7 +11,7 @@ import java.util.*
 data class SymbolicAction(
     val signature : ActionSignature,
     val guard : BoolExpr,
-    val varUpdates : Set<StateVarUpdate>,
+    val varUpdates : Map<Variable,ProgramExpr>,
 
     /**
      * All side effects take place before executing the ConcreteAction.

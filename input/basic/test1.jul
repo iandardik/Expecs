@@ -10,7 +10,7 @@ p-class S {
             p := "true"
     }
 
-    action Println(msg : Int) {
+    action PrintlnInt(msg : Int) {
         guard:
             (p = "true") & (msg = x)
         update:

@@ -3,6 +3,9 @@ package exspecs.ast
 import exspecs.parser.ExspecLexer
 import exspecs.parser.ExspecParser
 import exspecs.parser.ExspecParserBaseVisitor
+import exspecs.program.boolType
+import exspecs.program.intType
+import exspecs.program.stringType
 import org.antlr.v4.runtime.CharStream
 import org.antlr.v4.runtime.CommonTokenStream
 
@@ -113,17 +116,17 @@ class ASTBuilder : ExspecParserBaseVisitor<ASTNode>() {
 
     override fun visitValue(ctx: ExspecParser.ValueContext?): ASTNode {
         return if (ctx!!.ID() != null) {
-            ValueExprNode(ctx.ID().text, "Symbol")
+            SymbolValueExprNode(ctx.ID().text)
         } else if (ctx.INT() != null) {
-            ValueExprNode(ctx.INT().text, "Int")
+            LiteralValueExprNode(ctx.INT().text, intType)
         } else if (ctx.TRUE() != null) {
-            ValueExprNode(ctx.TRUE().text, "Bool")
+            LiteralValueExprNode(ctx.TRUE().text, boolType)
         } else if (ctx.FALSE() != null) {
-            ValueExprNode(ctx.FALSE().text, "Bool")
+            LiteralValueExprNode(ctx.FALSE().text, boolType)
         } else if (ctx.STRING() != null) {
             val rawStr = ctx.STRING().text
             val unquotedStr = rawStr.substring(1,rawStr.length-1)
-            ValueExprNode(unquotedStr, "String")
+            LiteralValueExprNode(unquotedStr, stringType)
         } else {
             throw RuntimeException("Invalid visitValue: invalid expression found: ${ctx.text}")
         }

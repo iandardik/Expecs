@@ -2,14 +2,14 @@ p-class S {
     var x : Int = 0
     var state : String = "A"
 
-    action PromptUser() {
+    action PromptUserInt(msg : String) {
         guard:
             state = "A"
         update:
             state := "B"
     }
     
-    action Readln(msg : Int) {
+    action ReadlnInt(msg : Int) {
         guard:
             state = "B"
         update:
@@ -17,7 +17,7 @@ p-class S {
             state := "C"
     }
 
-    action Println(msg : Int) {
+    action PrintlnInt(msg : Int) {
         guard:
             (state = "C") & (msg = x)
         update:

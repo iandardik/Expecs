@@ -2,7 +2,7 @@ p-class S {
     var x : Int = 0
     var p : String = "false"
     
-    action Readln(msg : Int) {
+    action ReadlnInt(msg : Int) {
         guard:
             p = "false"
         update:
@@ -10,7 +10,7 @@ p-class S {
             p := "true"
     }
 
-    action Println(msg : Int) {
+    action PrintlnInt(msg : Int) {
         guard:
             (p = "true") & (msg = x)
         update:

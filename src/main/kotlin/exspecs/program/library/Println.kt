@@ -6,13 +6,13 @@ import java.util.*
 
 fun makePrintln() : TransitionSystem {
     val ctx = Context()
-    val initState = State(setOf())
+    val initState = State(mapOf())
     val alphabet = setOf(
         SymbolicAction(
-            ActionSignature("Println", listOf(Variable("msg","String"))),
+            ActionSignature("Println", listOf(Variable("msg",stringType))),
             ctx.mkTrue(),
-            setOf(),
-            Optional.of { state, act -> println(act.lookup(Variable("msg", "String"))); state }
+            mapOf(),
+            Optional.of { state, act -> println(act.lookup(Variable("msg", stringType))); state }
         ),
     )
     // set selfTerminate to false because this is a library function
@@ -21,13 +21,13 @@ fun makePrintln() : TransitionSystem {
 
 fun makePrintlnInt() : TransitionSystem {
     val ctx = Context()
-    val initState = State(setOf())
+    val initState = State(mapOf())
     val alphabet = setOf(
         SymbolicAction(
-            ActionSignature("PrintlnInt", listOf(Variable("msg","Int"))),
+            ActionSignature("PrintlnInt", listOf(Variable("msg",intType))),
             ctx.mkTrue(),
-            setOf(),
-            Optional.of { state, act -> println(act.lookup(Variable("msg", "Int"))); state }
+            mapOf(),
+            Optional.of { state, act -> println(act.lookup(Variable("msg", intType))); state }
         ),
     )
     // set selfTerminate to false because this is a library function

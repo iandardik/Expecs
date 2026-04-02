@@ -1,29 +1,33 @@
 package exspecs.program
 
+import com.microsoft.z3.Context
+import com.microsoft.z3.Model
 import exspecs.tools.assert
 
 class ConcreteAction(
     val signature : ActionSignature,
-    private val argValues : Set<VarAssignment>,
+    private val argAssignments : Map<Variable,Value>
 ) {
-    init {
-        val variablesInSignature = signature.args.toSet()
-        val variablesAssigned = argValues.map { it.getVariable() }.toSet()
-        assert(variablesInSignature == variablesAssigned,
-            "ConcreteAction: expected sig and assigned variables to be identical")
-    }
+    constructor(sig : ActionSignature, ctx : Context, model : Model)
+        : this(sig, sig.args.associateWith { v ->
+            val z3Value = model.eval(v.type.toZ3Expr(v,ctx), true)
+            Value(z3Value, v.type)
+        }) {}
 
     fun hasArg(arg : Variable) : Boolean {
-        return argValues.any { it.getVariable() == arg }
+        return arg in argAssignments
     }
 
-    fun lookup(arg : Variable) : Any {
-        val argMatches = argValues.filter { it.getVariable() == arg }
-        assert(argMatches.size == 1, "ConcreteAction: expected one assignment to variable: $arg")
-        return argMatches.first().getValue()
+    fun lookup(variable : Variable) : Value {
+        assert(variable in argAssignments, "ConcreteAction.lookup($variable): is not assigned a value!")
+        return argAssignments[variable]!!
     }
 
     override fun toString() : String {
-        return "ConcreteAction($signature): $argValues"
+        return "ConcreteAction($signature): $argAssignments"
     }
+}
+
+fun emptyConcreteAction() : ConcreteAction {
+    return ConcreteAction(ActionSignature("",emptyList()), emptyMap())
 }
