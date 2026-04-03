@@ -1,0 +1,45 @@
+p-class FrontEnd {
+    var state : String = "A"
+    var keyReq : String = ""
+    var valReq : String = ""
+
+    action PromptUser(msg : String) {
+        guard:
+            state = "A" & msg = "Enter a key:"
+        update:
+            state := "B"
+    }
+    
+    action Readln(msg : String) {
+        guard:
+            state = "B"
+        update:
+            keyReq := msg
+            state := "C"
+    }
+
+    action ReadDB(key : String, val : String) {
+        guard:
+            (state = "C") & (key = keyReq)
+        update:
+            state := "D"
+            valReq := val
+    }
+
+    action Println(msg : String) {
+        guard:
+            (state = "D") & (msg = valReq)
+        update:
+            state := "A"
+    }
+}
+
+p-class DB {
+    action ReadDB(key : String, val : String) {
+        guard:
+              (key = "A" & val = "apple")
+            | (key = "B" & val = "banana")
+            | (key = "C" & val = "cherry")
+            | (~(key = "A" | key = "B" | key = "C") & val = "N/A")
+    }
+}

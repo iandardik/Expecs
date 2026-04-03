@@ -29,6 +29,6 @@
       </library>
     </orderEntry>
     <orderEntry type="library" name="com.microsoft.z3" level="project" />
-    <orderEntry type="library" name="Parser" level="project" />
+    <orderEntry type="library" name="JulayParser" level="project" />
   </component>
 </module>

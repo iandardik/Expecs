@@ -9,6 +9,6 @@ data class ActionSignature(
     val args : List<Variable>
 ) {
     override fun toString(): String {
-        return "$name(" + args.joinToString(",") + ")"
+        return "$name(" + args.joinToString(", ") + ")"
     }
 }

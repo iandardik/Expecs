@@ -1,20 +1,20 @@
 p-class S {
     var x : Int = 0
-    var p : String = "false"
+    var p : Bool = false
     
     action ReadlnInt(msg : Int) {
         guard:
-            p = "false"
+            ~p
         update:
             x := x + msg
-            p := "true"
+            p := true
     }
 
     action PrintlnInt(msg : Int) {
         guard:
-            (p = "true") & (msg = x)
+            p & (msg = x)
         update:
-            p := "false"
+            p := false
     }
 }
 

@@ -1,8 +1,8 @@
 package exspecs.ast
 
-import exspecs.parser.ExspecLexer
-import exspecs.parser.ExspecParser
-import exspecs.parser.ExspecParserBaseVisitor
+import exspecs.parser.JulayLexer
+import exspecs.parser.JulayParser
+import exspecs.parser.JulayParserBaseVisitor
 import exspecs.program.boolType
 import exspecs.program.intType
 import exspecs.program.stringType
@@ -10,29 +10,29 @@ import org.antlr.v4.runtime.CharStream
 import org.antlr.v4.runtime.CommonTokenStream
 
 fun buildAST(input : CharStream) : ASTNode {
-    val lexer = ExspecLexer(input)
+    val lexer = JulayLexer(input)
     val tokens = CommonTokenStream(lexer)
-    val parser = ExspecParser(tokens)
+    val parser = JulayParser(tokens)
     return ASTBuilder().visit(parser.program())
 }
 
-class ASTBuilder : ExspecParserBaseVisitor<ASTNode>() {
+class ASTBuilder : JulayParserBaseVisitor<ASTNode>() {
 
     /**
      * A program is a collection of processes.
      */
-    override fun visitProgram(ctx: ExspecParser.ProgramContext?): ASTNode {
+    override fun visitProgram(ctx: JulayParser.ProgramContext?): ASTNode {
         val procNodes = ctx!!.pclass().map { visit(it) }
         return ProgramNode(procNodes)
     }
 
-    override fun visitPclass(ctx: ExspecParser.PclassContext?): ASTNode {
+    override fun visitPclass(ctx: JulayParser.PclassContext?): ASTNode {
         val name = ctx!!.ID().text
         val localDecls = ctx.pclass_body().map { visit(it) }
         return ProcClassNode(name, localDecls)
     }
 
-    override fun visitPclass_body(ctx: ExspecParser.Pclass_bodyContext?): ASTNode {
+    override fun visitPclass_body(ctx: JulayParser.Pclass_bodyContext?): ASTNode {
         return if (ctx!!.var_decl() != null) {
             visit(ctx.var_decl())
         } else if (ctx.action_decl() != null) {
@@ -42,14 +42,14 @@ class ASTBuilder : ExspecParserBaseVisitor<ASTNode>() {
         }
     }
 
-    override fun visitVar_decl(ctx: ExspecParser.Var_declContext?): ASTNode {
+    override fun visitVar_decl(ctx: JulayParser.Var_declContext?): ASTNode {
         val name = ctx!!.ID(0).text
         val type = ctx.ID(1).text
         val value = visit(ctx.expr())
         return VarDeclNode(name, type, value)
     }
 
-    override fun visitAction_decl(ctx: ExspecParser.Action_declContext?): ASTNode {
+    override fun visitAction_decl(ctx: JulayParser.Action_declContext?): ASTNode {
         val name = ctx!!.ID().text
         val args = visit(ctx.action_args())
         val guards = ctx.guard().map { visit(it) }
@@ -57,34 +57,34 @@ class ASTBuilder : ExspecParserBaseVisitor<ASTNode>() {
         return ActionDeclNode(name, args, guards, updates)
     }
 
-    override fun visitAction_args(ctx: ExspecParser.Action_argsContext?): ASTNode {
+    override fun visitAction_args(ctx: JulayParser.Action_argsContext?): ASTNode {
         val args = ctx!!.action_arg().map { visit(it) }
         return ActionArgsNode(args)
     }
 
-    override fun visitAction_arg(ctx: ExspecParser.Action_argContext?): ASTNode {
+    override fun visitAction_arg(ctx: JulayParser.Action_argContext?): ASTNode {
         val name = ctx!!.ID(0).text
         val type = ctx!!.ID(1).text
         return ActionArgNode(name, type)
     }
 
-    override fun visitGuard(ctx: ExspecParser.GuardContext?): ASTNode {
+    override fun visitGuard(ctx: JulayParser.GuardContext?): ASTNode {
         val guardExpr = visit(ctx!!.expr())
         return GuardNode(guardExpr)
     }
 
-    override fun visitUpdate(ctx: ExspecParser.UpdateContext?): ASTNode {
+    override fun visitUpdate(ctx: JulayParser.UpdateContext?): ASTNode {
         val updates = ctx!!.var_update().map { visit(it) }
         return UpdateNode(updates)
     }
 
-    override fun visitVar_update(ctx: ExspecParser.Var_updateContext?): ASTNode {
+    override fun visitVar_update(ctx: JulayParser.Var_updateContext?): ASTNode {
         val varName = ctx!!.ID().text
         val update = visit(ctx.expr())
         return VarUpdateNode(varName, update)
     }
 
-    override fun visitExpr(ctx: ExspecParser.ExprContext?): ASTNode {
+    override fun visitExpr(ctx: JulayParser.ExprContext?): ASTNode {
        return if (ctx!!.EQ() != null) {
            BinaryOpExprNode("=", visit(ctx.expr(0)), visit(ctx.expr(1)))
        } else if (ctx.LT() != null) {
@@ -114,7 +114,7 @@ class ASTBuilder : ExspecParserBaseVisitor<ASTNode>() {
        }
     }
 
-    override fun visitValue(ctx: ExspecParser.ValueContext?): ASTNode {
+    override fun visitValue(ctx: JulayParser.ValueContext?): ASTNode {
         return if (ctx!!.ID() != null) {
             SymbolValueExprNode(ctx.ID().text)
         } else if (ctx.INT() != null) {
